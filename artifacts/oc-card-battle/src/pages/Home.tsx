@@ -37,7 +37,7 @@ export default function Home() {
               size="lg" 
               className="h-14 px-12 text-xl font-bold tracking-widest bg-primary hover:bg-primary/80 text-white rounded-none border border-primary glow-box transition-all duration-300"
             >
-              <Link href="/team">开始游戏</Link>
+              <Link href="/enemy">开始游戏</Link>
             </Button>
             <Button asChild variant="link" className="text-muted-foreground hover:text-primary transition-colors tracking-widest">
               <Link href="/prologue">序章 (剧情敬请期待)</Link>

@@ -3,14 +3,16 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { characters, Character } from "@/data/characters";
+import { currentBoss } from "@/data/enemies";
 import { useTeamStore } from "@/store/teamStore";
-import { ArrowLeft, Plus, Check } from "lucide-react";
+import { ArrowLeft, Plus, Check, AlertTriangle, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function TeamSelection() {
   const { selectedCharacterIds, addCharacter, removeCharacter } = useTeamStore();
   const [viewedCharId, setViewedCharId] = useState<string>(characters[0].id);
   const [overlayChar, setOverlayChar] = useState<Character | null>(null);
+  const [bossPeek, setBossPeek] = useState(false);
 
   const viewedChar = characters.find(c => c.id === viewedCharId)!;
   const isViewedSelected = selectedCharacterIds.includes(viewedCharId);
@@ -32,16 +34,112 @@ export default function TeamSelection() {
   return (
     <div className="min-h-screen bg-[#0a0612] text-foreground p-6 flex flex-col relative overflow-hidden">
       <div className="scanlines" />
-      
+
+      {/* Boss Peek — top-left, faded reminder of the target */}
+      <button
+        type="button"
+        onClick={() => setBossPeek(true)}
+        className="absolute top-3 left-3 z-30 group flex items-start gap-3 p-2 hover-elevate active-elevate-2 transition-all"
+        title="查看目标档案"
+      >
+        <div className="relative w-20 h-24 overflow-hidden border border-red-500/30 bg-black/40">
+          <img
+            src={currentBoss.image}
+            alt={currentBoss.name}
+            className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-60 transition-opacity duration-500"
+            style={{ filter: 'grayscale(40%) blur(0.3px)' }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0612] via-[#0a0612]/40 to-transparent" />
+          <div className="absolute top-1 left-1 text-[8px] font-mono text-red-300/80 tracking-widest">TARGET</div>
+          <div className="absolute -top-px -left-px w-3 h-3 border-t border-l border-red-500/60" />
+          <div className="absolute -top-px -right-px w-3 h-3 border-t border-r border-red-500/60" />
+          <div className="absolute -bottom-px -left-px w-3 h-3 border-b border-l border-red-500/60" />
+          <div className="absolute -bottom-px -right-px w-3 h-3 border-b border-r border-red-500/60" />
+        </div>
+        <div className="text-left mt-1 opacity-60 group-hover:opacity-100 transition-opacity">
+          <div className="text-[9px] font-mono text-red-400/70 tracking-[0.25em] flex items-center gap-1">
+            <AlertTriangle className="h-2.5 w-2.5" />
+            BOSS · {currentBoss.tier}
+          </div>
+          <div className="text-sm font-display font-bold text-white tracking-wider mt-0.5">{currentBoss.name}</div>
+          <div className="text-[10px] text-muted-foreground/70 tracking-widest font-mono mt-0.5 flex items-center gap-1">
+            <Eye className="h-2.5 w-2.5" />
+            点击查看档案
+          </div>
+        </div>
+      </button>
+
       {/* Header / Back */}
-      <div className="z-10 flex justify-between items-center mb-6">
+      <div className="z-10 flex justify-end items-center mb-6">
         <Button asChild variant="ghost" className="text-muted-foreground hover:text-white group">
-          <Link href="/">
+          <Link href="/enemy">
             <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             返回
           </Link>
         </Button>
       </div>
+
+      {/* Boss peek modal */}
+      <AnimatePresence>
+        {bossPeek && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setBossPeek(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              transition={{ duration: 0.25 }}
+              className="relative w-full max-w-3xl bg-[#0a0612] border border-red-500/40 max-h-[85vh] overflow-hidden flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: `url(${currentBoss.image})` }} />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0a0612]/95 via-[#0a0612]/85 to-[#0a0612]/60" />
+              <div className="relative px-8 py-5 border-b border-red-500/20 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] text-red-400/70 tracking-[0.3em] font-mono mb-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    THREAT BRIEFING · {currentBoss.codename}
+                  </div>
+                  <div className="text-red-300 text-xs tracking-widest font-mono">{currentBoss.title}</div>
+                  <h2 className="text-3xl font-display font-bold text-white tracking-wider mt-1">{currentBoss.name}</h2>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setBossPeek(false)} className="text-muted-foreground hover:text-white">
+                  关闭
+                </Button>
+              </div>
+              <div className="relative flex-1 overflow-y-auto px-8 py-6 font-mono">
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-[11px] border border-red-500/20 p-3 bg-red-950/10">
+                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">威胁</span><div className="text-white">{currentBoss.threatLevel}</div></div>
+                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">分类</span><div className="text-white">{currentBoss.classification}</div></div>
+                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">出没</span><div className="text-white">{currentBoss.habitat}</div></div>
+                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">生命</span><div className="text-white">{currentBoss.hp}</div></div>
+                </div>
+                <div className="mb-5">
+                  <div className="text-[10px] text-red-300 tracking-widest mb-2">攻略要点</div>
+                  <ul className="space-y-1.5">
+                    {currentBoss.strategyTips.map((tip, i) => (
+                      <li key={i} className="text-[11px] text-foreground/85 leading-relaxed flex gap-2">
+                        <span className="text-red-400/70 text-[10px] mt-0.5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="text-center">
+                  <Button asChild variant="outline" size="sm" className="rounded-none border-red-500/40 text-red-200 hover:bg-red-500/10 text-xs tracking-widest">
+                    <Link href="/enemy" onClick={() => setBossPeek(false)}>查看完整档案</Link>
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Team Slots */}
       <div className="z-10 flex flex-col items-center justify-center mb-8">

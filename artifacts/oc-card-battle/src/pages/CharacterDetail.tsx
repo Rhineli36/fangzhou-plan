@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { characters } from "@/data/characters";
-import { ArrowLeft, BookOpen, X } from "lucide-react";
+import { ArrowLeft, BookOpen, X, FileText, Heart, ChevronLeft, Quote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,12 +10,18 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import NotFound from "@/pages/not-found";
 
+type ViewMode = 'dossier' | 'background';
+
 export default function CharacterDetail() {
   const { id } = useParams<{ id: string }>();
   const char = characters.find(c => c.id === id);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('dossier');
 
   if (!char) return <NotFound />;
+
+  const ext = char.extendedBackground;
+  const pref = char.preferences;
 
   return (
     <div className="min-h-screen bg-[#0a0612] text-foreground flex relative overflow-hidden">
@@ -24,17 +30,25 @@ export default function CharacterDetail() {
       {/* Left Panel: Details — dossier feel */}
       <div className="w-1/2 h-screen border-r border-border/50 bg-background/95 backdrop-blur-md z-10 flex flex-col font-mono">
         <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-border/30">
-          <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7">
-            <Link href="/team">
-              <ArrowLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
-              返回编队
-            </Link>
-          </Button>
+          {viewMode === 'dossier' ? (
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7">
+              <Link href="/team">
+                <ArrowLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
+                返回编队
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => setViewMode('dossier')} className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7">
+              <ChevronLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
+              返回基础档案
+            </Button>
+          )}
           <div className="text-[10px] text-primary/40 tracking-widest font-mono">
-            DOSSIER · ID: {char.id.toUpperCase()}
+            {viewMode === 'dossier' ? 'DOSSIER' : 'CASE FILE'} · ID: {char.id.toUpperCase()}
           </div>
         </div>
 
+        {viewMode === 'dossier' && (
         <ScrollArea className="flex-1 px-10 py-8">
           {/* Header */}
           <div className="mb-6">
@@ -98,16 +112,26 @@ export default function CharacterDetail() {
             </div>
           </div>
 
-          {/* Background Story Button */}
-          <div className="mb-8">
+          {/* Background Story Buttons */}
+          <div className="mb-8 grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className="w-full rounded-none border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary text-primary text-xs h-10 tracking-widest font-mono"
+              className="rounded-none border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary text-primary text-[11px] h-10 tracking-widest font-mono"
               onClick={() => setStoryOpen(true)}
             >
-              <BookOpen className="mr-2 h-3.5 w-3.5" />
-              展开背景故事
+              <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+              背景故事
             </Button>
+            {(ext || pref) && (
+              <Button
+                variant="outline"
+                className="rounded-none border-accent/40 bg-accent/5 hover:bg-accent/15 hover:border-accent text-accent text-[11px] h-10 tracking-widest font-mono"
+                onClick={() => setViewMode('background')}
+              >
+                <FileText className="mr-1.5 h-3.5 w-3.5" />
+                完整背景档案
+              </Button>
+            )}
           </div>
 
           {/* Skills */}
@@ -159,6 +183,155 @@ export default function CharacterDetail() {
             — END OF FILE —
           </div>
         </ScrollArea>
+        )}
+
+        {viewMode === 'background' && (
+          <ScrollArea className="flex-1">
+            <motion.div
+              key="bg-view"
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+              className="px-10 py-8"
+            >
+              {/* Heading */}
+              <div className="mb-6">
+                <div className="text-[10px] text-accent/70 tracking-[0.3em] mb-2 font-mono">CASE FILE · No.{char.id.toUpperCase()} · CONFIDENTIAL</div>
+                <div className="text-accent text-xs tracking-widest mb-1 font-mono">{char.title}</div>
+                <h1 className="text-4xl font-bold font-display tracking-wider mb-2 glow-text">{char.name}</h1>
+                <div className="text-[11px] text-muted-foreground font-mono">完整背景档案 · FULL BACKGROUND RECORD</div>
+              </div>
+
+              <div className="border border-accent/20 bg-accent/[0.03] p-4 mb-6 text-[10px] font-mono text-accent/70 leading-relaxed">
+                以下内容由调查者整合自实地访谈、残存档案与官方记录，仅供战术参考。部分细节可能存在主观润色。
+              </div>
+
+              {/* Origin */}
+              {ext?.origin && (
+                <section className="mb-7">
+                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
+                    <span className="w-2 h-2 bg-accent mr-2 block" />
+                    第一章 · 身世起源 / ORIGIN
+                  </h2>
+                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
+                    {ext.origin}
+                  </div>
+                </section>
+              )}
+
+              {/* Family */}
+              {ext?.family && (
+                <section className="mb-7">
+                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
+                    <span className="w-2 h-2 bg-accent mr-2 block" />
+                    第二章 · 家人 / FAMILY
+                  </h2>
+                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
+                    {ext.family}
+                  </div>
+                </section>
+              )}
+
+              {/* Past Experiences */}
+              {ext?.pastExperiences && (
+                <section className="mb-7">
+                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
+                    <span className="w-2 h-2 bg-accent mr-2 block" />
+                    第三章 · 过往遭遇 / PAST
+                  </h2>
+                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
+                    {ext.pastExperiences}
+                  </div>
+                </section>
+              )}
+
+              {/* Current Situation */}
+              {ext?.currentSituation && (
+                <section className="mb-7">
+                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
+                    <span className="w-2 h-2 bg-accent mr-2 block" />
+                    第四章 · 当前状态 / PRESENT
+                  </h2>
+                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
+                    {ext.currentSituation}
+                  </div>
+                </section>
+              )}
+
+              {/* Personal preferences */}
+              {pref && (
+                <section className="mb-7">
+                  <h2 className="text-xs font-display font-bold mb-3 flex items-center text-accent tracking-widest uppercase">
+                    <Heart className="w-3 h-3 mr-2" />
+                    附录 · 个人侧写 / PROFILE
+                  </h2>
+                  <div className="border border-accent/20 bg-card/30 p-4 space-y-3 text-[12px]">
+                    {pref.favoriteColor && (
+                      <div className="flex gap-3 items-start">
+                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">喜欢的颜色</div>
+                        <div className="text-white font-medium">{pref.favoriteColor}</div>
+                      </div>
+                    )}
+                    {pref.likes && pref.likes.length > 0 && (
+                      <div className="flex gap-3 items-start">
+                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">喜好</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {pref.likes.map((like, i) => (
+                            <span key={i} className="text-[11px] border border-accent/30 px-2 py-0.5 bg-accent/5 text-foreground/90">{like}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {pref.dislikes && pref.dislikes.length > 0 && (
+                      <div className="flex gap-3 items-start">
+                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">厌恶</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {pref.dislikes.map((d, i) => (
+                            <span key={i} className="text-[11px] border border-red-500/30 px-2 py-0.5 bg-red-500/5 text-foreground/90">{d}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {pref.habits && (
+                      <div className="flex gap-3 items-start">
+                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">习惯</div>
+                        <div className="text-foreground/85 leading-relaxed">{pref.habits}</div>
+                      </div>
+                    )}
+                    {pref.motto && (
+                      <div className="flex gap-3 items-start">
+                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">座右铭</div>
+                        <div className="text-foreground/85 italic font-serif flex gap-1">
+                          <Quote className="h-3 w-3 mt-1 text-accent/50 shrink-0" />
+                          {pref.motto}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              )}
+
+              {/* Epilogue */}
+              {ext?.epilogue && (
+                <section className="mb-7">
+                  <div className="font-serif text-[12px] leading-loose text-accent/80 italic text-center px-6 py-4 border-t border-b border-accent/20">
+                    {ext.epilogue}
+                  </div>
+                </section>
+              )}
+
+              {!ext && !pref && (
+                <div className="text-center py-16 text-muted-foreground/60 text-sm font-mono tracking-widest">
+                  此角色暂无完整背景档案
+                </div>
+              )}
+
+              <div className="mt-8 pt-4 border-t border-accent/20 text-[9px] text-muted-foreground/40 tracking-widest text-center font-mono">
+                — END OF CASE FILE · 档案归档于"夜环"加密层 —
+              </div>
+            </motion.div>
+          </ScrollArea>
+        )}
       </div>
 
       {/* Background Story Dialog */}

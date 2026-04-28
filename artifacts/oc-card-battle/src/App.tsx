@@ -8,6 +8,7 @@ import TeamSelection from "@/pages/TeamSelection";
 import CharacterDetail from "@/pages/CharacterDetail";
 import Battle from "@/pages/Battle";
 import Prologue from "@/pages/Prologue";
+import EnemyDossier from "@/pages/EnemyDossier";
 
 const queryClient = new QueryClient();
 
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/character/:id" component={CharacterDetail} />
       <Route path="/battle" component={Battle} />
       <Route path="/prologue" component={Prologue} />
+      <Route path="/enemy" component={EnemyDossier} />
       <Route component={NotFound} />
     </Switch>
   );
