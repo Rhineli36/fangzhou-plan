@@ -305,8 +305,6 @@ export default function CreateOC() {
   if (!form.name.trim()) errors.push("请填写角色名");
   if (!form.title.trim()) errors.push("请填写称号");
   if (!form.profession) errors.push("请选择职业");
-  if (!form.backgroundStory.trim()) errors.push("请填写背景故事简述");
-  if (!form.epilogue.trim()) errors.push("请填写角色的结局故事");
   // 天赋（被动）必填
   if (!form.passiveSkill.name.trim()) errors.push("请填写天赋技能名");
   if (!form.passiveSkill.effectDescription.trim()) errors.push("请填写天赋技能的效果描述");
@@ -589,8 +587,12 @@ export default function CreateOC() {
           </Section>
 
           {/* SECTION: Background story */}
-          <Section title="背景故事" subtitle="BACKGROUND · 角色的身份与世界观">
-            <Field label="背景故事简述" required hint="200-400 字最佳，作为简介展示">
+          <Section title="背景故事（选填）" subtitle="BACKGROUND · 角色的身份与世界观 · 整节都可以空着">
+            <div className="border border-accent/20 bg-accent/5 p-4 mb-4 text-[11px] text-accent/80 font-mono leading-relaxed">
+              本章节<span className="text-white">全部为选填</span>。哪怕一栏不填也能提交，但填得越详细，角色越立体。
+            </div>
+
+            <Field label="背景故事简述" hint="200-400 字最佳，作为简介展示">
               <Textarea
                 value={form.backgroundStory}
                 onChange={e => update("backgroundStory", e.target.value)}
@@ -599,8 +601,8 @@ export default function CreateOC() {
               />
             </Field>
 
-            <div className="border border-accent/20 bg-accent/5 p-4 mb-4 text-[11px] text-accent/80 font-mono leading-relaxed">
-              下面四章为完整背景档案（选填），填得越详细，角色越立体。空着不影响提交。
+            <div className="border border-accent/20 bg-accent/5 p-4 mb-4 mt-2 text-[11px] text-accent/80 font-mono leading-relaxed">
+              下面四章为完整背景档案，按章节展开会让角色更有层次。
             </div>
 
             <Field label="第一章 · 身世起源">
@@ -631,7 +633,7 @@ export default function CreateOC() {
               </ul>
             </div>
 
-            <Field label="结局故事" required hint="完整、有头有尾，呼应背景故事中的羁绊与诉求">
+            <Field label="结局故事" hint="完整、有头有尾，呼应背景故事中的羁绊与诉求">
               <Textarea
                 value={form.epilogue}
                 onChange={e => update("epilogue", e.target.value)}
