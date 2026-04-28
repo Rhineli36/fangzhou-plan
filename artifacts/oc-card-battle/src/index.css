@@ -1,0 +1,158 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card-border: hsl(var(--card-border));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover-border: hsl(var(--popover-border));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-border: var(--primary-border);
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-border: var(--secondary-border);
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted-border: var(--muted-border);
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-border: var(--accent-border);
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive-border: var(--destructive-border);
+
+  --font-sans: var(--app-font-sans);
+  --font-serif: var(--app-font-serif);
+  --font-mono: var(--app-font-mono);
+  --font-display: var(--app-font-display);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  /* Using dark theme variables as default */
+  --background: 260 50% 5%;
+  --foreground: 0 0% 100%;
+  --border: 260 30% 20%;
+  --card: 260 40% 8%;
+  --card-foreground: 0 0% 100%;
+  --card-border: 260 30% 20%;
+  --popover: 260 40% 8%;
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 260 30% 20%;
+  --primary: 271 91% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 260 30% 15%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 260 30% 15%;
+  --muted-foreground: 260 20% 70%;
+  --accent: 190 90% 53%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 350 80% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 260 30% 20%;
+  --ring: 271 91% 65%;
+
+  --app-font-sans: "Noto Sans SC", "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --app-font-serif: Georgia, serif;
+  --app-font-mono: Menlo, monospace;
+  --app-font-display: "Oswald", "Noto Sans SC", sans-serif;
+  --radius: 0.5rem;
+
+  --sidebar: 260 40% 8%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-border: 260 30% 20%;
+  --sidebar-primary: 271 91% 65%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 260 30% 15%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-ring: 271 91% 65%;
+}
+
+.dark {
+  --background: 260 50% 5%;
+  --foreground: 0 0% 100%;
+  --border: 260 30% 20%;
+  --card: 260 40% 8%;
+  --card-foreground: 0 0% 100%;
+  --card-border: 260 30% 20%;
+  --popover: 260 40% 8%;
+  --popover-foreground: 0 0% 100%;
+  --popover-border: 260 30% 20%;
+  --primary: 271 91% 65%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 260 30% 15%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 260 30% 15%;
+  --muted-foreground: 260 20% 70%;
+  --accent: 190 90% 53%;
+  --accent-foreground: 0 0% 10%;
+  --destructive: 350 80% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --input: 260 30% 20%;
+  --ring: 271 91% 65%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    /* Force dark mode */
+    color-scheme: dark;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(255,255,255,0),
+    rgba(255,255,255,0) 50%,
+    rgba(0,0,0,0.1) 50%,
+    rgba(0,0,0,0.1)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.3;
+}
+
+.glow-text {
+  text-shadow: 0 0 10px hsl(var(--primary) / 0.5), 0 0 20px hsl(var(--primary) / 0.3);
+}
+
+.glow-box {
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.3), inset 0 0 10px hsl(var(--primary) / 0.2);
+}

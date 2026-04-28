@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "OC 抽卡对战"
+version = "1.0.0"
+id = "artifacts/oc-card-battle"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22949
+
+[services.development]
+run = "pnpm --filter @workspace/oc-card-battle run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/oc-card-battle", "run", "build" ]
+publicDir = "artifacts/oc-card-battle/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22949"
+BASE_PATH = "/"
