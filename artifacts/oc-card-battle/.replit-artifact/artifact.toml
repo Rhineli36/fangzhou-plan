@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "OC 抽卡对战"
+title = "方舟计划"
 version = "1.0.0"
 id = "artifacts/oc-card-battle"
 router = "path"

@@ -35,6 +35,8 @@ const ZODIACS = [
   "白羊座", "金牛座", "双子座", "巨蟹座", "狮子座", "处女座",
   "天秤座", "天蝎座", "射手座", "摩羯座", "水瓶座", "双鱼座", "未知"
 ];
+const STORAGE_KEY = "oc-card-battle:create-oc-draft";
+const FIXED_CLASS = "2025届设计8班";
 
 interface SkillForm {
   name: string;
@@ -51,6 +53,7 @@ interface FormState {
   studentClass: string;
   studentAvatar: string;
   messageToCharacter: string;
+  proposedGameName: string;
 
   // Character basics
   id: string;
@@ -98,9 +101,10 @@ const emptySkill: SkillForm = {
 const emptyForm: FormState = {
   studentName: "",
   studentId: "",
-  studentClass: "",
+  studentClass: FIXED_CLASS,
   studentAvatar: "",
   messageToCharacter: "",
+  proposedGameName: "",
 
   id: "",
   name: "",
@@ -137,8 +141,6 @@ const emptyForm: FormState = {
   skills: [{ ...emptySkill }],
 };
 
-const STORAGE_KEY = "oc-card-battle:create-oc-draft";
-
 export default function CreateOC() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [linkInput, setLinkInput] = useState("");
@@ -151,7 +153,10 @@ export default function CreateOC() {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setForm({ ...emptyForm, ...JSON.parse(raw) });
+      if (raw) {
+        const draft = JSON.parse(raw);
+        setForm({ ...emptyForm, ...draft, studentClass: FIXED_CLASS });
+      }
     } catch {/* ignore */}
   }, []);
 
@@ -268,9 +273,10 @@ export default function CreateOC() {
       creator: {
         name: form.studentName,
         studentId: form.studentId,
-        class: form.studentClass,
+        class: FIXED_CLASS,
         avatar: form.studentAvatar || undefined,
         messageToCharacter: form.messageToCharacter || undefined,
+        proposedGameName: form.proposedGameName || undefined,
       },
       character: {
         id,
@@ -383,7 +389,7 @@ export default function CreateOC() {
             <div className="flex items-start gap-3">
               <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <div className="text-sm text-foreground/85 leading-relaxed">
-                <div className="font-display font-bold text-lg text-primary mb-2 tracking-wider">欢迎提交你的原创角色</div>
+                <div className="font-display font-bold text-lg text-primary mb-2 tracking-wider">欢迎登记你的角色 · 方舟计划</div>
                 请按下方表单填写你的 OC 设定与图片。带 <span className="text-red-400">*</span> 的字段为必填项；其他章节可以选填，越完整越好。
                 填写过程会自动保存到本地浏览器，关掉页面也能继续。
                 完成后点击底部"生成提交文件"，浏览器会下载一个 .json 文件，把它发送给老师即可入库。
@@ -419,12 +425,10 @@ export default function CreateOC() {
                     />
                   </Field>
                 </div>
-                <Field label="班级 / 组别">
-                  <Input
-                    value={form.studentClass}
-                    onChange={e => update("studentClass", e.target.value)}
-                    placeholder="例如：AIGC 实验班 第 3 组"
-                  />
+                <Field label="班级" hint="本次活动锁定为本班">
+                  <div className="h-10 px-3 flex items-center border border-border/60 bg-muted/30 text-foreground/90 text-sm tracking-wider font-mono">
+                    {FIXED_CLASS}
+                  </div>
                 </Field>
               </div>
             </div>
@@ -434,6 +438,13 @@ export default function CreateOC() {
                 onChange={e => update("messageToCharacter", e.target.value)}
                 placeholder='例如："谢谢你陪我度过了那些深夜，希望你在另一个世界活得自由。"'
                 className="min-h-[100px] font-serif"
+              />
+            </Field>
+            <Field label="为游戏起个名字（可选）" hint="征集中 · 当前默认《方舟计划》，欢迎提名替代方案">
+              <Input
+                value={form.proposedGameName}
+                onChange={e => update("proposedGameName", e.target.value)}
+                placeholder="例如：黑雾纪元 / 终末档案 / 残响之后"
               />
             </Field>
           </Section>

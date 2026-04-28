@@ -25,9 +25,9 @@ export default function Home() {
           className="flex flex-col items-center space-y-6"
         >
           <div className="space-y-2">
-            <h2 className="text-xl tracking-[0.3em] text-primary/80 font-display font-medium">ORIGINAL CHARACTER CARD BATTLE</h2>
+            <h2 className="text-xl tracking-[0.3em] text-primary/80 font-display font-medium">PROJECT ARK · 2025 设计 8 班</h2>
             <h1 className="text-6xl md:text-8xl font-bold tracking-wider text-white glow-text font-display">
-              OC 抽卡对战
+              方舟计划
             </h1>
           </div>
 
