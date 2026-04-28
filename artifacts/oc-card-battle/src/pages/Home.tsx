@@ -42,6 +42,9 @@ export default function Home() {
             <Button asChild variant="link" className="text-muted-foreground hover:text-primary transition-colors tracking-widest">
               <Link href="/prologue">序章 (剧情敬请期待)</Link>
             </Button>
+            <Button asChild variant="link" className="text-muted-foreground/70 hover:text-accent transition-colors tracking-widest text-sm">
+              <Link href="/create">提交我的原创角色 →</Link>
+            </Button>
           </div>
         </motion.div>
       </div>

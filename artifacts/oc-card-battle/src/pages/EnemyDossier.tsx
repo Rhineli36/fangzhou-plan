@@ -46,39 +46,66 @@ export default function EnemyDossier() {
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
-          {/* Left: Image */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-0">
+          {/* Left: Image — full bleed for maximum presence */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-            className="relative flex items-center justify-center p-8 border-r border-red-500/20"
+            transition={{ duration: 1 }}
+            className="relative overflow-hidden border-r border-red-500/20 min-h-[60vh] lg:min-h-0"
           >
-            <div className="relative w-full max-w-xl">
-              {/* Frame corners */}
-              <div className="absolute -top-2 -left-2 w-8 h-8 border-t-2 border-l-2 border-red-500/60" />
-              <div className="absolute -top-2 -right-2 w-8 h-8 border-t-2 border-r-2 border-red-500/60" />
-              <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-2 border-l-2 border-red-500/60" />
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-2 border-r-2 border-red-500/60" />
+            {/* Full-bleed boss image */}
+            <img
+              src={boss.image}
+              alt={boss.name}
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ filter: 'contrast(1.05) saturate(0.95)' }}
+            />
 
-              <div className="relative bg-black/40 border border-red-500/30 overflow-hidden">
-                <img
-                  src={boss.image}
-                  alt={boss.name}
-                  className="w-full h-auto object-contain"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0612]/40 via-transparent to-transparent pointer-events-none" />
-                <div className="absolute top-3 left-3 text-[10px] text-red-300/80 font-mono tracking-widest bg-black/50 px-2 py-1">
-                  TARGET LOCKED
-                </div>
-                <div className="absolute bottom-3 right-3 text-[10px] text-red-300/80 font-mono tracking-widest bg-black/50 px-2 py-1">
-                  {boss.codename}
-                </div>
-              </div>
+            {/* Atmospheric overlays */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0612] via-transparent to-[#0a0612]/30 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0a0612]/40 pointer-events-none" />
+            <div className="absolute inset-0 mix-blend-overlay pointer-events-none"
+                 style={{ background: 'radial-gradient(ellipse at 40% 35%, transparent 30%, rgba(127,29,29,0.25) 100%)' }} />
 
-              <div className="mt-4 text-center text-[10px] text-muted-foreground/50 tracking-[0.3em] font-mono">
-                — VISUAL RECORD · CAPTURED FROM SURVIVOR FOOTAGE —
+            {/* Frame corner brackets */}
+            <div className="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-red-500/70 pointer-events-none" />
+            <div className="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-red-500/70 pointer-events-none" />
+            <div className="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 border-red-500/70 pointer-events-none" />
+            <div className="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-red-500/70 pointer-events-none" />
+
+            {/* HUD Labels */}
+            <div className="absolute top-6 left-8 text-[11px] text-red-300/90 font-mono tracking-widest bg-black/60 px-3 py-1.5 border border-red-500/40">
+              ▣ TARGET LOCKED
+            </div>
+            <div className="absolute top-6 right-8 text-[10px] text-red-300/80 font-mono tracking-widest bg-black/60 px-3 py-1.5 border border-red-500/40 text-right">
+              <div>{boss.codename}</div>
+              <div className="text-[8px] text-red-400/60 mt-0.5">CONTAINMENT: FAILED</div>
+            </div>
+
+            {/* Bottom giant name overlay */}
+            <div className="absolute bottom-0 left-0 right-0 px-10 pb-10 pt-20 bg-gradient-to-t from-[#0a0612] via-[#0a0612]/70 to-transparent">
+              <div className="text-[10px] text-red-300/70 tracking-[0.4em] font-mono mb-1">{boss.title}</div>
+              <h2 className="text-6xl lg:text-7xl font-display font-bold text-white tracking-wider"
+                style={{ textShadow: '0 0 30px rgba(220,38,38,0.5), 0 4px 12px rgba(0,0,0,0.8)' }}>
+                {boss.name}
+              </h2>
+              <div className="mt-3 flex items-center gap-2 text-[10px] text-muted-foreground/60 font-mono tracking-widest">
+                <span className="w-8 h-px bg-red-500/40" />
+                VISUAL RECORD · CAPTURED FROM SURVIVOR FOOTAGE
               </div>
+            </div>
+
+            {/* Vertical scan ticks */}
+            <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 pointer-events-none">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="w-2 h-px bg-red-500/40" />
+              ))}
+            </div>
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-1.5 pointer-events-none">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="w-2 h-px bg-red-500/40 ml-auto" />
+              ))}
             </div>
           </motion.div>
 
@@ -90,14 +117,9 @@ export default function EnemyDossier() {
             className="relative flex flex-col"
           >
             <ScrollArea className="flex-1 px-10 py-8 font-mono">
-              {/* Header */}
-              <div className="mb-6">
-                <div className="text-[10px] text-red-400/70 tracking-[0.3em] mb-2">FILE No.{boss.id.toUpperCase()} · ENEMY DOSSIER</div>
-                <div className="text-red-300 text-xs tracking-widest mb-1">{boss.title}</div>
-                <h1 className="text-5xl font-display font-bold tracking-wider text-white mb-3"
-                  style={{ textShadow: '0 0 20px rgba(239,68,68,0.4)' }}>
-                  {boss.name}
-                </h1>
+              {/* Compact header — name is on the image side */}
+              <div className="mb-5">
+                <div className="text-[10px] text-red-400/70 tracking-[0.3em] mb-3">FILE No.{boss.id.toUpperCase()} · ENEMY DOSSIER</div>
                 <div className="flex flex-wrap gap-1.5">
                   <Badge className="bg-red-500/20 text-red-300 border-red-500/50 rounded-none text-[10px] px-2 py-0 h-5 hover:bg-red-500/30">
                     {boss.tier}

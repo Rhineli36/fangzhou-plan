@@ -9,6 +9,7 @@ import CharacterDetail from "@/pages/CharacterDetail";
 import Battle from "@/pages/Battle";
 import Prologue from "@/pages/Prologue";
 import EnemyDossier from "@/pages/EnemyDossier";
+import CreateOC from "@/pages/CreateOC";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,8 @@ function Router() {
       <Route path="/battle" component={Battle} />
       <Route path="/prologue" component={Prologue} />
       <Route path="/enemy" component={EnemyDossier} />
+      <Route path="/create" component={CreateOC} />
+      <Route path="/submit" component={CreateOC} />
       <Route component={NotFound} />
     </Switch>
   );
