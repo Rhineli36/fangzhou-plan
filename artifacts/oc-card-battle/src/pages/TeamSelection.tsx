@@ -165,7 +165,7 @@ export default function TeamSelection() {
                 </div>
               )}
               
-              <div className="absolute bottom-0 left-0 bg-gradient-to-r from-[#0a0612] via-[#0a0612]/80 to-transparent p-6 w-full max-w-md">
+              <div className="absolute bottom-0 left-0 bg-gradient-to-r from-[#0a0612] via-[#0a0612]/80 to-transparent p-6 w-full max-w-sm">
                 <div className="mb-2 text-primary font-medium tracking-widest text-sm">{viewedChar.title}</div>
                 <h2 className="text-5xl font-bold font-display mb-4 tracking-wider">{viewedChar.name}</h2>
                 <div className="flex gap-2 mb-6">
@@ -173,7 +173,7 @@ export default function TeamSelection() {
                   <Badge variant="secondary" className="bg-secondary/80">{viewedChar.positioning}</Badge>
                 </div>
                 
-                <div className="flex gap-4">
+                <div className="flex gap-3">
                   <Button 
                     className="flex-1 rounded-none border border-primary bg-primary hover:bg-primary/80 glow-box text-white"
                     disabled={isViewedSelected || isTeamFull}
@@ -181,7 +181,7 @@ export default function TeamSelection() {
                   >
                     {isViewedSelected ? '已在队伍中' : isTeamFull ? '队伍已满' : '选择'}
                   </Button>
-                  <Button asChild variant="outline" className="w-full rounded-none border-border bg-[#0a0612]/50 hover:bg-secondary text-foreground backdrop-blur-sm">
+                  <Button asChild variant="outline" className="flex-1 rounded-none border-border bg-[#0a0612]/50 hover:bg-secondary text-foreground backdrop-blur-sm">
                     <Link href={`/character/${viewedChar.id}`}>详细信息</Link>
                   </Button>
                 </div>
