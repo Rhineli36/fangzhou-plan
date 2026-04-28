@@ -30,7 +30,8 @@ import {
 import { motion } from "framer-motion";
 
 const PROFESSIONS = ["调查者", "战斗者", "支援者", "异种", "遗民"] as const;
-const SKILL_TYPES = ["攻击", "防御", "异能", "天赋", "恢复"] as const;
+// 主动技能可选类型（不含"天赋"，天赋单独作为被动技能）
+const ACTIVE_SKILL_TYPES = ["攻击", "防御", "异能", "恢复"] as const;
 const ZODIACS = [
   "白羊座", "金牛座", "双子座", "巨蟹座", "狮子座", "处女座",
   "天秤座", "天蝎座", "射手座", "摩羯座", "水瓶座", "双鱼座", "未知"
@@ -38,12 +39,21 @@ const ZODIACS = [
 const STORAGE_KEY = "oc-card-battle:create-oc-draft";
 const FIXED_CLASS = "2025届设计8班";
 
-interface SkillForm {
+interface PassiveSkillForm {
   name: string;
-  type: typeof SKILL_TYPES[number] | "";
   effectDescription: string;
   characteristic: string;
-  illustration: string;
+  icon: string;
+  castIllustration: string;
+}
+
+interface ActiveSkillForm {
+  name: string;
+  type: typeof ACTIVE_SKILL_TYPES[number] | "";
+  effectDescription: string;
+  characteristic: string;
+  icon: string;
+  castIllustration: string;
 }
 
 interface FormState {
@@ -77,6 +87,7 @@ interface FormState {
   pastExperiences: string;
   currentSituation: string;
   epilogue: string;
+  epilogueIllustration: string;
 
   // Preferences
   likes: string[];
@@ -85,17 +96,22 @@ interface FormState {
   habits: string;
   motto: string;
 
-  // Character images
+  // Character images（不再有"战斗插图"，已被技能释放插图替代）
   avatar: string;
   portrait: string;
   selectionPortrait: string;
-  combatPortrait: string;
 
-  skills: SkillForm[];
+  // Skills
+  passiveSkill: PassiveSkillForm;
+  activeSkills: ActiveSkillForm[];
 }
 
-const emptySkill: SkillForm = {
-  name: "", type: "", effectDescription: "", characteristic: "", illustration: "",
+const emptyPassive: PassiveSkillForm = {
+  name: "", effectDescription: "", characteristic: "", icon: "", castIllustration: "",
+};
+
+const emptyActive: ActiveSkillForm = {
+  name: "", type: "", effectDescription: "", characteristic: "", icon: "", castIllustration: "",
 };
 
 const emptyForm: FormState = {
@@ -126,6 +142,7 @@ const emptyForm: FormState = {
   pastExperiences: "",
   currentSituation: "",
   epilogue: "",
+  epilogueIllustration: "",
 
   likes: [],
   dislikes: [],
@@ -136,9 +153,9 @@ const emptyForm: FormState = {
   avatar: "",
   portrait: "",
   selectionPortrait: "",
-  combatPortrait: "",
 
-  skills: [{ ...emptySkill }],
+  passiveSkill: { ...emptyPassive },
+  activeSkills: [{ ...emptyActive }],
 };
 
 export default function CreateOC() {
@@ -149,14 +166,46 @@ export default function CreateOC() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState<string | null>(null);
 
-  // Load draft on mount
+  // Load draft on mount (含旧版 skills 字段迁移)
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const draft = JSON.parse(raw);
-        setForm({ ...emptyForm, ...draft, studentClass: FIXED_CLASS });
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+
+      // 旧版兼容：把旧的 `skills: SkillForm[]` 拆成 passiveSkill + activeSkills
+      if (Array.isArray(draft.skills) && !draft.passiveSkill && !draft.activeSkills) {
+        type LegacySkill = {
+          name?: string; type?: string;
+          effectDescription?: string; characteristic?: string; illustration?: string;
+        };
+        const legacy: LegacySkill[] = draft.skills;
+        const passive = legacy.find(s => s.type === "天赋");
+        const actives = legacy.filter(s => s.type !== "天赋");
+        draft.passiveSkill = passive ? {
+          name: passive.name ?? "",
+          effectDescription: passive.effectDescription ?? "",
+          characteristic: passive.characteristic ?? "",
+          icon: passive.illustration ?? "",
+          castIllustration: "",
+        } : { ...emptyPassive };
+        draft.activeSkills = actives.length > 0
+          ? actives.map(s => ({
+              name: s.name ?? "",
+              type: (s.type && s.type !== "天赋" && (ACTIVE_SKILL_TYPES as readonly string[]).includes(s.type))
+                ? (s.type as typeof ACTIVE_SKILL_TYPES[number])
+                : "",
+              effectDescription: s.effectDescription ?? "",
+              characteristic: s.characteristic ?? "",
+              icon: "",
+              castIllustration: s.illustration ?? "",
+            }))
+          : [{ ...emptyActive }];
+        delete draft.skills;
+        delete draft.combatPortrait;
       }
+
+      setForm({ ...emptyForm, ...draft, studentClass: FIXED_CLASS });
     } catch {/* ignore */}
   }, []);
 
@@ -183,7 +232,7 @@ export default function CreateOC() {
   };
 
   // Image upload helper for top-level fields
-  type ImageKey = "avatar" | "portrait" | "selectionPortrait" | "combatPortrait" | "studentAvatar";
+  type ImageKey = "avatar" | "portrait" | "selectionPortrait" | "studentAvatar" | "epilogueIllustration";
   const handleImage = (file: File | null, key: ImageKey) => {
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
@@ -197,18 +246,30 @@ export default function CreateOC() {
     reader.readAsDataURL(file);
   };
 
-  // Per-skill illustration upload
-  const handleSkillImage = (idx: number, file: File | null) => {
+  // Read a file as data URL (helper for skill image uploads)
+  const readAsDataURL = (file: File | null, onDone: (src: string) => void) => {
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) {
       alert("图片过大，请上传 4MB 以内的图片。");
       return;
     }
     const reader = new FileReader();
-    reader.onload = e => {
-      updateSkill(idx, { illustration: (e.target?.result as string) ?? "" });
-    };
+    reader.onload = e => onDone((e.target?.result as string) ?? "");
     reader.readAsDataURL(file);
+  };
+
+  // Passive skill image upload
+  const handlePassiveImage = (field: "icon" | "castIllustration", file: File | null) => {
+    readAsDataURL(file, src => {
+      update("passiveSkill", { ...form.passiveSkill, [field]: src });
+    });
+  };
+
+  // Active skill image upload
+  const handleActiveSkillImage = (idx: number, field: "icon" | "castIllustration", file: File | null) => {
+    readAsDataURL(file, src => {
+      updateActiveSkill(idx, { [field]: src });
+    });
   };
 
   // Tag list helpers
@@ -222,19 +283,19 @@ export default function CreateOC() {
     update(key, form[key].filter(x => x !== value));
   };
 
-  // Skill helpers
-  const addSkill = () => {
-    if (form.skills.length >= 3) return;
-    update("skills", [...form.skills, { ...emptySkill }]);
+  // Active skill helpers
+  const addActiveSkill = () => {
+    if (form.activeSkills.length >= 3) return;
+    update("activeSkills", [...form.activeSkills, { ...emptyActive }]);
   };
-  const updateSkill = (idx: number, patch: Partial<SkillForm>) => {
-    const next = [...form.skills];
+  const updateActiveSkill = (idx: number, patch: Partial<ActiveSkillForm>) => {
+    const next = [...form.activeSkills];
     next[idx] = { ...next[idx], ...patch };
-    update("skills", next);
+    update("activeSkills", next);
   };
-  const removeSkill = (idx: number) => {
-    if (form.skills.length <= 1) return;
-    update("skills", form.skills.filter((_, i) => i !== idx));
+  const removeActiveSkill = (idx: number) => {
+    if (form.activeSkills.length <= 1) return;
+    update("activeSkills", form.activeSkills.filter((_, i) => i !== idx));
   };
 
   // Validation
@@ -246,19 +307,18 @@ export default function CreateOC() {
   if (!form.profession) errors.push("请选择职业");
   if (!form.backgroundStory.trim()) errors.push("请填写背景故事简述");
   if (!form.epilogue.trim()) errors.push("请填写角色的结局故事");
-  if (!form.skills[0]?.name?.trim()) errors.push("至少填写 1 个技能（含技能名）");
-  if (!form.skills[0]?.effectDescription?.trim()) errors.push("至少填写 1 个技能的效果描述");
-  // Combat illustration: at least one combat-context image must exist
-  // (either combatPortrait OR at least one skill has an illustration)
-  const hasSkillIllustration = form.skills.some(s => s.illustration);
-  if (!form.combatPortrait && !hasSkillIllustration) {
-    errors.push("请至少上传 1 张战斗/技能释放插图（或为某个技能上传插图）");
-  }
-  if (form.combatPortrait && form.combatPortrait === form.portrait) {
-    errors.push("战斗插图不能和详情立绘相同，请换一张");
-  }
-  if (form.combatPortrait && form.combatPortrait === form.selectionPortrait) {
-    errors.push("战斗插图不能和选择立绘相同，请换一张");
+  // 天赋（被动）必填
+  if (!form.passiveSkill.name.trim()) errors.push("请填写天赋技能名");
+  if (!form.passiveSkill.effectDescription.trim()) errors.push("请填写天赋技能的效果描述");
+  // 主动技能至少 1 个
+  if (!form.activeSkills[0]?.name?.trim()) errors.push("至少填写 1 个主动技能（含技能名）");
+  if (!form.activeSkills[0]?.effectDescription?.trim()) errors.push("至少填写 1 个主动技能的效果描述");
+  // 战斗插图替代规则：至少一个技能（被动或主动）必须上传"释放技能插图"，确保有战斗状态画面
+  const hasAnyCastIllustration =
+    !!form.passiveSkill.castIllustration ||
+    form.activeSkills.some(s => s.castIllustration);
+  if (!hasAnyCastIllustration) {
+    errors.push('请至少为 1 个技能（天赋或主动）上传"释放技能的插图"，作为战斗画面');
   }
 
   const handleSubmit = () => {
@@ -299,6 +359,7 @@ export default function CreateOC() {
           pastExperiences: form.pastExperiences || undefined,
           currentSituation: form.currentSituation || undefined,
           epilogue: form.epilogue,
+          epilogueIllustration: form.epilogueIllustration || undefined,
         },
         preferences: {
           likes: form.likes.length ? form.likes : undefined,
@@ -307,21 +368,29 @@ export default function CreateOC() {
           habits: form.habits || undefined,
           motto: form.motto || undefined,
         },
-        skills: form.skills
+        passiveSkill: {
+          name: form.passiveSkill.name,
+          type: "天赋",
+          effectDescription: form.passiveSkill.effectDescription,
+          characteristic: form.passiveSkill.characteristic || undefined,
+          icon: form.passiveSkill.icon || undefined,
+          castIllustration: form.passiveSkill.castIllustration || undefined,
+        },
+        activeSkills: form.activeSkills
           .filter(s => s.name.trim())
           .map(s => ({
             name: s.name,
             type: s.type,
             effectDescription: s.effectDescription,
             characteristic: s.characteristic || undefined,
-            illustration: s.illustration || undefined,
+            icon: s.icon || undefined,
+            castIllustration: s.castIllustration || undefined,
           })),
       },
       images: {
         avatar: form.avatar,
         portrait: form.portrait,
         selectionPortrait: form.selectionPortrait,
-        combatPortrait: form.combatPortrait || undefined,
       },
     };
 
@@ -551,14 +620,43 @@ export default function CreateOC() {
               <div className="text-[11px] text-primary tracking-[0.25em] font-mono">FINAL CHAPTER</div>
               <div className="text-sm text-foreground/85">每个角色都需要有一个结局——胜利、牺牲、消失或重生，都可以。</div>
             </div>
-            <Field label="结局故事" required hint="角色在故事最终的归宿，会出现在通关结算">
+
+            <div className="border border-primary/30 bg-primary/5 p-4 mb-4 text-[12px] text-foreground/85 leading-relaxed">
+              <div className="font-bold text-primary mb-2 tracking-wider">写结局时，请务必交代清楚以下内容：</div>
+              <ul className="list-disc pl-5 space-y-1 text-foreground/80">
+                <li>结局必须和前面的<span className="text-white">背景故事</span>有关联，让读者能感受到前因后果。</li>
+                <li>之前你为角色设定的<span className="text-white">羁绊</span>（与谁的牵挂）、<span className="text-white">愿望</span>、<span className="text-white">诉求</span>，最后<span className="text-white">有没有实现</span>？</li>
+                <li>角色的<span className="text-white">最终归宿</span>是什么？活下来、牺牲、消失、重生、归隐……都可以，但要写明白。</li>
+                <li>故事要<span className="text-white">完整</span>——有开始、过程、结尾，不要只写一句概括。</li>
+              </ul>
+            </div>
+
+            <Field label="结局故事" required hint="完整、有头有尾，呼应背景故事中的羁绊与诉求">
               <Textarea
                 value={form.epilogue}
                 onChange={e => update("epilogue", e.target.value)}
-                placeholder="例如：黑雾散去那天，没有人再见过她。只有屋顶上的风，偶尔送来一阵蝶翼般的颤动。"
-                className="min-h-[120px] font-serif"
+                placeholder={`完整地讲述这个角色的结局。例如：\n\n那年她终于找到了父亲留下的研究档案，里面藏着关于母亲的真相。她带着妹妹离开了第十二街区，没有再回头。多年后，下城区的孩子们仍在传说，只要在黑雾最浓的夜晚抬头，就能看见一抹紫色的闪电——那是她回来看故人的方式。\n\n她最初的羁绊从未褪色，只是换了一种方式存在。`}
+                className="min-h-[180px] font-serif"
               />
             </Field>
+
+            <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 mt-2">
+              <ImageUpload
+                label="结局插图（选填）"
+                hint="如果你为结局画了独立立绘，可以上传"
+                value={form.epilogueIllustration}
+                onChange={file => handleImage(file, "epilogueIllustration")}
+                onClear={() => update("epilogueIllustration", "")}
+                aspect="aspect-[2/3]"
+              />
+              <div className="text-[12px] text-foreground/75 leading-relaxed border border-accent/20 bg-accent/5 p-4 self-start">
+                <div className="font-bold text-accent mb-1 tracking-wider">关于结局插图</div>
+                这一张是<span className="text-white">可选的</span>。
+                如果你希望结局段落里有一张专门为这一刻设计的画面（例如：角色背影远去、墓碑前的剪影、新生时的黎明），
+                可以自己设计好后上传到这里。它会出现在通关结算的结局画面中。
+                如果不上传，系统会用角色的"详情立绘"作为结局画面。
+              </div>
+            </div>
           </Section>
 
           {/* SECTION: Preferences */}
@@ -608,37 +706,98 @@ export default function CreateOC() {
           </Section>
 
           {/* SECTION: Skills */}
-          <Section title="战斗技能" subtitle={`SKILLS · 1-3 个 · 当前 ${form.skills.length} 个`}>
+          <Section title="战斗技能" subtitle={`SKILLS · 1 个天赋（被动） + ${form.activeSkills.length}/3 个主动技能`}>
             <div className="border border-accent/20 bg-accent/5 p-4 mb-4 text-[12px] text-accent/85 leading-relaxed">
               <div className="font-bold text-accent mb-1 tracking-wider">填写说明</div>
-              不需要写具体数值（伤害百分比、能量值等），只用一句话描述<span className="text-white">效果</span>和<span className="text-white">特点</span>就行。
-              老师会根据你的描述配平数值。技能的"进阶/觉醒"也不用你设定。
+              <div className="space-y-1.5 text-foreground/85">
+                <div>每个角色有 <span className="text-white">1 个天赋（被动技能）</span> + <span className="text-white">1-3 个主动技能</span>。</div>
+                <div>不需要写数值（伤害百分比、能量值等），只用一句话描述<span className="text-white">效果</span>和<span className="text-white">特点</span>就行。</div>
+                <div>每个技能可以上传两张图：<span className="text-white">技能图标</span>（小，方形，用于战斗时的按钮 / 卡牌图标）+ <span className="text-white">释放技能的插图</span>（大，竖图，角色释放该技能时的画面）。</div>
+              </div>
+            </div>
+
+            {/* 被动 / 天赋技能 */}
+            <div className="border border-amber-500/40 bg-amber-500/5 p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs font-mono text-amber-300 tracking-widest">
+                  天赋（被动技能） · 每个角色仅 1 个 <span className="text-red-400 ml-1">*</span>
+                </div>
+                <span className="text-[10px] text-amber-200/70 font-mono">PASSIVE</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px] gap-4">
+                <div className="space-y-3">
+                  <Field label="天赋名" required>
+                    <Input
+                      value={form.passiveSkill.name}
+                      onChange={e => update("passiveSkill", { ...form.passiveSkill, name: e.target.value })}
+                      placeholder="例如：暗影潜行"
+                    />
+                  </Field>
+                  <Field label="效果描述" required hint="天赋是被动触发的，描述它带来什么效果">
+                    <Textarea
+                      value={form.passiveSkill.effectDescription}
+                      onChange={e => update("passiveSkill", { ...form.passiveSkill, effectDescription: e.target.value })}
+                      placeholder="例如：在黑雾中获得隐身效果，提高暴击率。"
+                      className="min-h-[70px]"
+                    />
+                  </Field>
+                  <Field label="技能特点" hint="天赋的触发条件或独特机制">
+                    <Textarea
+                      value={form.passiveSkill.characteristic}
+                      onChange={e => update("passiveSkill", { ...form.passiveSkill, characteristic: e.target.value })}
+                      placeholder="例如：场上有黑雾时持续生效；每回合开始触发一次。"
+                      className="min-h-[70px]"
+                    />
+                  </Field>
+                </div>
+                <ImageUpload
+                  label="技能图标"
+                  hint="选填 · 方形小图"
+                  value={form.passiveSkill.icon}
+                  onChange={file => handlePassiveImage("icon", file)}
+                  onClear={() => update("passiveSkill", { ...form.passiveSkill, icon: "" })}
+                  aspect="aspect-square"
+                />
+                <ImageUpload
+                  label="释放技能的插图"
+                  hint="选填 · 竖图"
+                  value={form.passiveSkill.castIllustration}
+                  onChange={file => handlePassiveImage("castIllustration", file)}
+                  onClear={() => update("passiveSkill", { ...form.passiveSkill, castIllustration: "" })}
+                  aspect="aspect-[2/3]"
+                />
+              </div>
+            </div>
+
+            {/* 主动技能 */}
+            <div className="text-xs font-mono text-primary tracking-widest mb-2">
+              主动技能 · {form.activeSkills.length}/3
             </div>
             <div className="space-y-4">
-              {form.skills.map((skill, idx) => (
+              {form.activeSkills.map((skill, idx) => (
                 <div key={idx} className="border border-border bg-card/30 p-4 relative">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-xs font-mono text-primary tracking-widest">
-                      技能 #{idx + 1}
+                      主动技能 #{idx + 1}
                       {idx === 0 && <span className="text-red-400 ml-1">*</span>}
                     </div>
-                    {form.skills.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeSkill(idx)}>
+                    {form.activeSkills.length > 1 && (
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeActiveSkill(idx)}>
                         <X className="h-4 w-4" />
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px] gap-4">
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Field label="技能名" required={idx === 0}>
-                          <Input value={skill.name} onChange={e => updateSkill(idx, { name: e.target.value })} placeholder="例如：紫电瞬杀" />
+                          <Input value={skill.name} onChange={e => updateActiveSkill(idx, { name: e.target.value })} placeholder="例如：紫电瞬杀" />
                         </Field>
                         <Field label="类型">
-                          <Select value={skill.type} onValueChange={v => updateSkill(idx, { type: v as SkillForm["type"] })}>
+                          <Select value={skill.type} onValueChange={v => updateActiveSkill(idx, { type: v as ActiveSkillForm["type"] })}>
                             <SelectTrigger><SelectValue placeholder="请选择" /></SelectTrigger>
                             <SelectContent>
-                              {SKILL_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                              {ACTIVE_SKILL_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </Field>
@@ -646,7 +805,7 @@ export default function CreateOC() {
                       <Field label="效果描述" required={idx === 0} hint="不需要数值，描述效果即可">
                         <Textarea
                           value={skill.effectDescription}
-                          onChange={e => updateSkill(idx, { effectDescription: e.target.value })}
+                          onChange={e => updateActiveSkill(idx, { effectDescription: e.target.value })}
                           placeholder="例如：对单个敌人造成较强伤害；治疗全队少量血量；为自己附加 2 回合护盾。"
                           className="min-h-[70px]"
                         />
@@ -654,35 +813,43 @@ export default function CreateOC() {
                       <Field label="技能特点" hint="技能的独特机制 / 触发条件">
                         <Textarea
                           value={skill.characteristic}
-                          onChange={e => updateSkill(idx, { characteristic: e.target.value })}
+                          onChange={e => updateActiveSkill(idx, { characteristic: e.target.value })}
                           placeholder="例如：连续使用效果递增；对生命值低于 50% 的目标额外造成伤害；命中后使敌人沉默 1 回合。"
                           className="min-h-[70px]"
                         />
                       </Field>
                     </div>
                     <ImageUpload
-                      label="技能插图"
-                      hint="选填 · 1024×1024"
-                      value={skill.illustration}
-                      onChange={file => handleSkillImage(idx, file)}
-                      onClear={() => updateSkill(idx, { illustration: "" })}
+                      label="技能图标"
+                      hint="选填 · 方形小图"
+                      value={skill.icon}
+                      onChange={file => handleActiveSkillImage(idx, "icon", file)}
+                      onClear={() => updateActiveSkill(idx, { icon: "" })}
                       aspect="aspect-square"
+                    />
+                    <ImageUpload
+                      label="释放技能的插图"
+                      hint="选填 · 竖图"
+                      value={skill.castIllustration}
+                      onChange={file => handleActiveSkillImage(idx, "castIllustration", file)}
+                      onClear={() => updateActiveSkill(idx, { castIllustration: "" })}
+                      aspect="aspect-[2/3]"
                     />
                   </div>
                 </div>
               ))}
-              {form.skills.length < 3 && (
-                <Button type="button" variant="outline" onClick={addSkill} className="w-full rounded-none border-dashed border-primary/40 text-primary hover:bg-primary/10">
+              {form.activeSkills.length < 3 && (
+                <Button type="button" variant="outline" onClick={addActiveSkill} className="w-full rounded-none border-dashed border-primary/40 text-primary hover:bg-primary/10">
                   <Plus className="mr-2 h-4 w-4" />
-                  添加技能（最多 3 个）
+                  添加主动技能（最多 3 个）
                 </Button>
               )}
             </div>
           </Section>
 
           {/* SECTION: Images */}
-          <Section title="角色图片" subtitle="IMAGES · 至少 4 张：头像 + 详情立绘 + 选择立绘 + 战斗插图">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Section title="角色图片" subtitle="IMAGES · 头像 + 详情立绘 + 选择立绘（战斗状态画面在技能里上传）">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <ImageUpload
                 label="头像"
                 hint="256 × 256"
@@ -710,21 +877,11 @@ export default function CreateOC() {
                 aspect="aspect-[2/3]"
                 required
               />
-              <ImageUpload
-                label="战斗插图"
-                hint="1024 × 1536 · 释放技能/战斗状态"
-                value={form.combatPortrait}
-                onChange={file => handleImage(file, "combatPortrait")}
-                onClear={() => update("combatPortrait", "")}
-                aspect="aspect-[2/3]"
-              />
             </div>
             <div className="mt-4 text-[11px] text-foreground/70 leading-relaxed border border-primary/20 bg-primary/5 p-3">
-              <div className="text-primary font-bold mb-1 tracking-wider">关于战斗插图</div>
-              "战斗插图"是角色在战斗中、释放技能时的姿态，<span className="text-white">必须和详情立绘、选择立绘不一样</span>。
-              如果你已经为每个技能单独画了插图，那么"战斗插图"可以不传。
-            </div>
-            <div className="mt-2 text-[11px] text-muted-foreground/70 font-mono leading-relaxed">
+              <div className="text-primary font-bold mb-1 tracking-wider">说明</div>
+              战斗中"释放技能"的画面已经在上方<span className="text-white">每个技能</span>里单独上传了，
+              所以这一节只放<span className="text-white">头像 / 详情立绘 / 选择立绘</span>三张就够了。
               单张图片大小请控制在 4MB 以内。
             </div>
           </Section>
