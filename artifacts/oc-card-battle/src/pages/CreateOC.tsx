@@ -402,7 +402,7 @@ export default function CreateOC() {
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
               <ImageUpload
                 label="我的头像"
-                hint="AIGC 创作"
+                hint="AIGC 创作 · 可以选择卡通头像或者非本人头像"
                 value={form.studentAvatar}
                 onChange={file => handleImage(file, "studentAvatar")}
                 onClear={() => update("studentAvatar", "")}

@@ -5,20 +5,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { characters, Character } from "@/data/characters";
 import { currentBoss } from "@/data/enemies";
 import { useTeamStore } from "@/store/teamStore";
-import { ArrowLeft, Plus, Check, AlertTriangle, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Check, AlertTriangle, Eye, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function TeamSelection() {
   const { selectedCharacterIds, addCharacter, removeCharacter } = useTeamStore();
-  const [viewedCharId, setViewedCharId] = useState<string>(characters[0].id);
+  const firstUnlocked = characters.find(c => !c.locked) ?? characters[0];
+  const [viewedCharId, setViewedCharId] = useState<string>(firstUnlocked.id);
   const [overlayChar, setOverlayChar] = useState<Character | null>(null);
   const [bossPeek, setBossPeek] = useState(false);
 
   const viewedChar = characters.find(c => c.id === viewedCharId)!;
+  const isViewedLocked = !!viewedChar.locked;
   const isViewedSelected = selectedCharacterIds.includes(viewedCharId);
   const isTeamFull = selectedCharacterIds.length >= 3;
 
   const handleSelectClick = () => {
+    if (isViewedLocked) return;
     if (!isViewedSelected && !isTeamFull) {
       setOverlayChar(viewedChar);
     }
@@ -35,37 +38,39 @@ export default function TeamSelection() {
     <div className="min-h-screen bg-[#0a0612] text-foreground p-6 flex flex-col relative overflow-hidden">
       <div className="scanlines" />
 
-      {/* Boss Peek — top-left, faded reminder of the target */}
+      {/* Boss Backdrop — 60% 不透明度，覆盖左半屏，作为 BOSS 的临场提醒 */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-1/2 z-0 overflow-hidden"
+      >
+        <img
+          src={currentBoss.image}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover object-center"
+          style={{ opacity: 0.6, filter: 'grayscale(20%)' }}
+        />
+        {/* 右侧渐隐到主背景，避免与中间内容竞争 */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0612]/30 to-[#0a0612]" />
+        {/* 顶部与底部的暗角，融入页面 */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#0a0612]/80 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0612]/80 to-transparent" />
+      </div>
+
+      {/* Boss HUD 标签 + 查看档案按钮 */}
       <button
         type="button"
         onClick={() => setBossPeek(true)}
-        className="absolute top-3 left-3 z-30 group flex items-start gap-3 p-2 hover-elevate active-elevate-2 transition-all"
+        className="absolute top-4 left-4 z-30 group flex flex-col items-start gap-1 px-3 py-2 bg-black/40 border border-red-500/40 hover:border-red-400 hover:bg-black/60 transition-all"
         title="查看目标档案"
       >
-        <div className="relative w-20 h-24 overflow-hidden border border-red-500/30 bg-black/40">
-          <img
-            src={currentBoss.image}
-            alt={currentBoss.name}
-            className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover:opacity-60 transition-opacity duration-500"
-            style={{ filter: 'grayscale(40%) blur(0.3px)' }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0612] via-[#0a0612]/40 to-transparent" />
-          <div className="absolute top-1 left-1 text-[8px] font-mono text-red-300/80 tracking-widest">TARGET</div>
-          <div className="absolute -top-px -left-px w-3 h-3 border-t border-l border-red-500/60" />
-          <div className="absolute -top-px -right-px w-3 h-3 border-t border-r border-red-500/60" />
-          <div className="absolute -bottom-px -left-px w-3 h-3 border-b border-l border-red-500/60" />
-          <div className="absolute -bottom-px -right-px w-3 h-3 border-b border-r border-red-500/60" />
+        <div className="text-[9px] font-mono text-red-400 tracking-[0.3em] flex items-center gap-1.5">
+          <AlertTriangle className="h-2.5 w-2.5" />
+          TARGET LOCKED · {currentBoss.tier}
         </div>
-        <div className="text-left mt-1 opacity-60 group-hover:opacity-100 transition-opacity">
-          <div className="text-[9px] font-mono text-red-400/70 tracking-[0.25em] flex items-center gap-1">
-            <AlertTriangle className="h-2.5 w-2.5" />
-            BOSS · {currentBoss.tier}
-          </div>
-          <div className="text-sm font-display font-bold text-white tracking-wider mt-0.5">{currentBoss.name}</div>
-          <div className="text-[10px] text-muted-foreground/70 tracking-widest font-mono mt-0.5 flex items-center gap-1">
-            <Eye className="h-2.5 w-2.5" />
-            点击查看档案
-          </div>
+        <div className="text-base font-display font-bold text-white tracking-wider">{currentBoss.name}</div>
+        <div className="text-[10px] text-red-200/80 tracking-widest font-mono flex items-center gap-1 group-hover:text-red-100">
+          <Eye className="h-2.5 w-2.5" />
+          点击查看档案
         </div>
       </button>
 
@@ -204,15 +209,31 @@ export default function TeamSelection() {
 
       {/* Main Content Area */}
       <div className="z-10 flex-1 flex gap-8 max-w-6xl mx-auto w-full">
-        {/* Left: Avatar Grid */}
-        <div className="w-1/3 border-r border-border/50 pr-8">
-          <div className="grid grid-cols-4 gap-3">
+        {/* Left: Avatar Grid (24 槽位 = 6 列 × 4 行) */}
+        <div className="w-1/2 border-r border-border/50 pr-6">
+          <div className="grid grid-cols-6 gap-2">
             {characters.map((char) => {
               const isSelected = selectedCharacterIds.includes(char.id);
               const isViewed = char.id === viewedCharId;
-              
+              const isLocked = !!char.locked;
+
+              if (isLocked) {
+                return (
+                  <div
+                    key={char.id}
+                    className="relative aspect-square border border-border/30 bg-black/40 flex items-center justify-center cursor-not-allowed"
+                    title="档案待录入"
+                  >
+                    <Lock className="w-4 h-4 text-muted-foreground/40" />
+                    <div className="absolute bottom-0.5 inset-x-0 text-center text-[8px] font-mono text-muted-foreground/40 tracking-widest">
+                      待录入
+                    </div>
+                  </div>
+                );
+              }
+
               return (
-                <div 
+                <div
                   key={char.id}
                   onClick={() => setViewedCharId(char.id)}
                   className={`
@@ -240,7 +261,7 @@ export default function TeamSelection() {
         </div>
 
         {/* Right: Character Info & Portrait */}
-        <div className="w-2/3 flex flex-col justify-end relative h-[500px]">
+        <div className="w-1/2 flex flex-col justify-end relative h-[500px]">
           <AnimatePresence mode="wait">
             <motion.div 
               key={viewedChar.id}

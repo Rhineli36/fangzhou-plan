@@ -18,7 +18,7 @@ export default function CharacterDetail() {
   const [storyOpen, setStoryOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('dossier');
 
-  if (!char) return <NotFound />;
+  if (!char || char.locked) return <NotFound />;
 
   const ext = char.extendedBackground;
   const pref = char.preferences;

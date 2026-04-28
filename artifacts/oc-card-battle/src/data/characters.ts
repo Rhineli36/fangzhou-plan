@@ -53,6 +53,36 @@ export interface Character {
   portrait: string;
   selectionPortrait: string;
   skills: Skill[];
+  /** 待录入占位 — UI 中显示为锁定卡牌 */
+  locked?: boolean;
+}
+
+/** 生成 16 个占位角色，凑够 24 个槽位 */
+function makePlaceholders(): Character[] {
+  return Array.from({ length: 16 }, (_, i) => {
+    const num = String(i + 9).padStart(2, "0");
+    return {
+      id: `placeholder-${num}`,
+      name: "???",
+      title: "档案待录入",
+      profession: "调查者" as Profession,
+      positioning: "—",
+      hp: 0,
+      gender: "—",
+      age: "—",
+      birthday: "—",
+      zodiac: "—",
+      bloodType: "—",
+      linkedCharacters: [],
+      backgroundStory: "档案尚未录入。等待 2025 届设计 8 班的同学提交。",
+      selectionLine: "...",
+      avatar: "",
+      portrait: "",
+      selectionPortrait: "",
+      skills: [],
+      locked: true,
+    };
+  });
 }
 
 export const characters: Character[] = [
@@ -336,5 +366,6 @@ export const characters: Character[] = [
         upgrade: '恢复量增加'
       }
     ]
-  }
+  },
+  ...makePlaceholders(),
 ];
