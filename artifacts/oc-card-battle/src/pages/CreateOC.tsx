@@ -298,26 +298,70 @@ export default function CreateOC() {
     update("activeSkills", form.activeSkills.filter((_, i) => i !== idx));
   };
 
-  // Validation
+  // Validation — 全部字段必填
   const errors: string[] = [];
+
+  // 创作者信息
+  if (!form.studentAvatar) errors.push("请上传创作者头像");
   if (!form.studentName.trim()) errors.push("请填写创作者姓名");
   if (!form.studentId.trim()) errors.push("请填写学号");
+  if (!form.messageToCharacter.trim()) errors.push('请填写"想对这个角色说的话"');
+  if (!form.proposedGameName.trim()) errors.push("请为游戏起一个名字");
+
+  // 角色基础信息
   if (!form.name.trim()) errors.push("请填写角色名");
   if (!form.title.trim()) errors.push("请填写称号");
   if (!form.profession) errors.push("请选择职业");
-  // 天赋（被动）必填
+  if (!form.positioning.trim()) errors.push("请填写定位 / 标签");
+  if (!form.gender.trim()) errors.push("请填写性别");
+  if (!form.age.trim()) errors.push("请填写年龄");
+  if (!form.birthday.trim()) errors.push("请填写生日");
+  if (!form.zodiac) errors.push("请选择星座");
+  if (!form.bloodType.trim()) errors.push("请填写血型");
+  if (form.linkedCharacters.length === 0) errors.push("请至少添加 1 个羁绊角色");
+  if (!form.selectionLine.trim()) errors.push("请填写入场台词 / 选择台词");
+
+  // 角色图片
+  if (!form.avatar) errors.push("请上传角色头像");
+  if (!form.portrait) errors.push("请上传角色详情立绘");
+  if (!form.selectionPortrait) errors.push("请上传角色选择立绘");
+
+  // 背景故事 — 全部必填
+  if (!form.backgroundStory.trim()) errors.push("请填写背景故事简述");
+  if (!form.origin.trim()) errors.push("请填写第一章 · 身世起源");
+  if (!form.family.trim()) errors.push("请填写第二章 · 家人");
+  if (!form.pastExperiences.trim()) errors.push("请填写第三章 · 过往遭遇");
+  if (!form.currentSituation.trim()) errors.push("请填写第四章 · 当前状态");
+  if (!form.epilogue.trim()) errors.push("请填写结局故事");
+  if (!form.epilogueIllustration) errors.push("请上传结局插图");
+
+  // 个人侧写 — 全部必填
+  if (!form.favoriteColor.trim()) errors.push("请填写喜欢的颜色");
+  if (!form.motto.trim()) errors.push("请填写座右铭");
+  if (form.likes.length === 0) errors.push("请至少添加 1 个喜好");
+  if (form.dislikes.length === 0) errors.push("请至少添加 1 个厌恶");
+  if (!form.habits.trim()) errors.push("请填写生活习惯");
+
+  // 天赋（被动） — 全部必填
   if (!form.passiveSkill.name.trim()) errors.push("请填写天赋技能名");
   if (!form.passiveSkill.effectDescription.trim()) errors.push("请填写天赋技能的效果描述");
-  // 主动技能至少 1 个
-  if (!form.activeSkills[0]?.name?.trim()) errors.push("至少填写 1 个主动技能（含技能名）");
-  if (!form.activeSkills[0]?.effectDescription?.trim()) errors.push("至少填写 1 个主动技能的效果描述");
-  // 战斗插图替代规则：至少一个技能（被动或主动）必须上传"释放技能插图"，确保有战斗状态画面
-  const hasAnyCastIllustration =
-    !!form.passiveSkill.castIllustration ||
-    form.activeSkills.some(s => s.castIllustration);
-  if (!hasAnyCastIllustration) {
-    errors.push('请至少为 1 个技能（天赋或主动）上传"释放技能的插图"，作为战斗画面');
+  if (!form.passiveSkill.characteristic.trim()) errors.push("请填写天赋技能的特点");
+  if (!form.passiveSkill.icon) errors.push("请上传天赋技能图标");
+  if (!form.passiveSkill.castIllustration) errors.push("请上传天赋技能的释放插图");
+
+  // 主动技能 — 至少 1 个，且每个都全部必填
+  if (form.activeSkills.length === 0) {
+    errors.push("请至少添加 1 个主动技能");
   }
+  form.activeSkills.forEach((s, i) => {
+    const tag = `主动技能 #${i + 1}`;
+    if (!s.name.trim()) errors.push(`请填写${tag}的技能名`);
+    if (!s.type) errors.push(`请选择${tag}的类型`);
+    if (!s.effectDescription.trim()) errors.push(`请填写${tag}的效果描述`);
+    if (!s.characteristic.trim()) errors.push(`请填写${tag}的特点`);
+    if (!s.icon) errors.push(`请上传${tag}的技能图标`);
+    if (!s.castIllustration) errors.push(`请上传${tag}的释放插图`);
+  });
 
   const handleSubmit = () => {
     if (errors.length > 0) {
@@ -457,7 +501,7 @@ export default function CreateOC() {
               <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
               <div className="text-sm text-foreground/85 leading-relaxed">
                 <div className="font-display font-bold text-lg text-primary mb-2 tracking-wider">欢迎登记你的角色 · 方舟计划</div>
-                请按下方表单填写你的 OC 设定与图片。带 <span className="text-red-400">*</span> 的字段为必填项；其他章节可以选填，越完整越好。
+                请按下方表单填写你的 OC 设定与图片。<span className="text-red-400">本次所有字段均为必填</span>，每一栏都不能空着，让你的角色拥有完整的设定档。
                 填写过程会自动保存到本地浏览器，关掉页面也能继续。
                 完成后点击底部"生成提交文件"，浏览器会下载一个 .json 文件，把它发送给老师即可入库。
               </div>
@@ -474,6 +518,7 @@ export default function CreateOC() {
                 onChange={file => handleImage(file, "studentAvatar")}
                 onClear={() => update("studentAvatar", "")}
                 aspect="aspect-square"
+                required
               />
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -499,7 +544,7 @@ export default function CreateOC() {
                 </Field>
               </div>
             </div>
-            <Field label="想对这个角色说的话" hint="一段写给 TA 的话，会展示在角色档案里">
+            <Field label="想对这个角色说的话" required hint="一段写给 TA 的话，会展示在角色档案里">
               <Textarea
                 value={form.messageToCharacter}
                 onChange={e => update("messageToCharacter", e.target.value)}
@@ -507,7 +552,7 @@ export default function CreateOC() {
                 className="min-h-[100px] font-serif"
               />
             </Field>
-            <Field label="为游戏起个名字（可选）" hint="征集中 · 当前默认《方舟计划》，欢迎提名替代方案">
+            <Field label="为游戏起个名字" required hint="征集中 · 当前默认《方舟计划》，欢迎提名替代方案">
               <Input
                 value={form.proposedGameName}
                 onChange={e => update("proposedGameName", e.target.value)}
@@ -533,7 +578,7 @@ export default function CreateOC() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="定位 / 标签">
+              <Field label="定位 / 标签" required>
                 <Input value={form.positioning} onChange={e => update("positioning", e.target.value)} placeholder="例如：高爆发刺客 / 重装前排" />
               </Field>
               <Field label={`生命值 HP（${form.hp}）`} hint="建议 4-6，越高越耐打">
@@ -542,16 +587,16 @@ export default function CreateOC() {
                   onChange={e => update("hp", Number(e.target.value))}
                 />
               </Field>
-              <Field label="性别">
+              <Field label="性别" required>
                 <Input value={form.gender} onChange={e => update("gender", e.target.value)} placeholder="例如：女 / 男 / 未知" />
               </Field>
-              <Field label="年龄">
+              <Field label="年龄" required>
                 <Input value={form.age} onChange={e => update("age", e.target.value)} placeholder="例如：19 / 不详" />
               </Field>
-              <Field label="生日">
+              <Field label="生日" required>
                 <Input value={form.birthday} onChange={e => update("birthday", e.target.value)} placeholder="例如：4月14日" />
               </Field>
-              <Field label="星座">
+              <Field label="星座" required>
                 <Select value={form.zodiac} onValueChange={v => update("zodiac", v)}>
                   <SelectTrigger><SelectValue placeholder="请选择星座" /></SelectTrigger>
                   <SelectContent>
@@ -559,12 +604,12 @@ export default function CreateOC() {
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="血型">
+              <Field label="血型" required>
                 <Input value={form.bloodType} onChange={e => update("bloodType", e.target.value)} placeholder="例如：AB型 / 未知" />
               </Field>
             </div>
 
-            <Field label="羁绊角色" hint="按回车添加，可填多个">
+            <Field label="羁绊角色" required hint="按回车添加，至少填 1 个">
               <div className="flex gap-2">
                 <Input
                   value={linkInput}
@@ -581,18 +626,18 @@ export default function CreateOC() {
               <TagList tags={form.linkedCharacters} onRemove={t => removeTag("linkedCharacters", t)} />
             </Field>
 
-            <Field label="入场台词 / 选择台词">
+            <Field label="入场台词 / 选择台词" required>
               <Input value={form.selectionLine} onChange={e => update("selectionLine", e.target.value)} placeholder="例如：黑雾中的暗杀，无法被识别。" />
             </Field>
           </Section>
 
           {/* SECTION: Background story */}
-          <Section title="背景故事（选填）" subtitle="BACKGROUND · 角色的身份与世界观 · 整节都可以空着">
-            <div className="border border-accent/20 bg-accent/5 p-4 mb-4 text-[11px] text-accent/80 font-mono leading-relaxed">
-              本章节<span className="text-white">全部为选填</span>。哪怕一栏不填也能提交，但填得越详细，角色越立体。
+          <Section title="背景故事" subtitle="BACKGROUND · 角色的身份与世界观 · 全部必填">
+            <div className="border border-red-400/30 bg-red-400/5 p-4 mb-4 text-[11px] text-red-200/80 font-mono leading-relaxed">
+              本章节<span className="text-white">每一栏都需要填写</span>。请按"简述 + 四章档案 + 结局"完整书写，让角色拥有完整的人物弧。
             </div>
 
-            <Field label="背景故事简述" hint="200-400 字最佳，作为简介展示">
+            <Field label="背景故事简述" required hint="200-400 字最佳，作为简介展示">
               <Textarea
                 value={form.backgroundStory}
                 onChange={e => update("backgroundStory", e.target.value)}
@@ -602,19 +647,19 @@ export default function CreateOC() {
             </Field>
 
             <div className="border border-accent/20 bg-accent/5 p-4 mb-4 mt-2 text-[11px] text-accent/80 font-mono leading-relaxed">
-              下面四章为完整背景档案，按章节展开会让角色更有层次。
+              下面四章为完整背景档案，请按章节展开，让角色更有层次。
             </div>
 
-            <Field label="第一章 · 身世起源">
+            <Field label="第一章 · 身世起源" required>
               <Textarea value={form.origin} onChange={e => update("origin", e.target.value)} placeholder="出生地、家庭背景、成长环境..." className="min-h-[100px] font-serif" />
             </Field>
-            <Field label="第二章 · 家人">
+            <Field label="第二章 · 家人" required>
               <Textarea value={form.family} onChange={e => update("family", e.target.value)} placeholder="父亲、母亲、兄弟姐妹、其他重要亲属..." className="min-h-[100px] font-serif" />
             </Field>
-            <Field label="第三章 · 过往遭遇">
+            <Field label="第三章 · 过往遭遇" required>
               <Textarea value={form.pastExperiences} onChange={e => update("pastExperiences", e.target.value)} placeholder="灾变前后发生的关键事件..." className="min-h-[100px] font-serif" />
             </Field>
-            <Field label="第四章 · 当前状态">
+            <Field label="第四章 · 当前状态" required>
               <Textarea value={form.currentSituation} onChange={e => update("currentSituation", e.target.value)} placeholder="角色现在身处何处，在做什么..." className="min-h-[100px] font-serif" />
             </Field>
 
@@ -633,7 +678,7 @@ export default function CreateOC() {
               </ul>
             </div>
 
-            <Field label="结局故事" hint="完整、有头有尾，呼应背景故事中的羁绊与诉求">
+            <Field label="结局故事" required hint="完整、有头有尾，呼应背景故事中的羁绊与诉求">
               <Textarea
                 value={form.epilogue}
                 onChange={e => update("epilogue", e.target.value)}
@@ -644,35 +689,37 @@ export default function CreateOC() {
 
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 mt-2">
               <ImageUpload
-                label="结局插图（选填）"
-                hint="如果你为结局画了独立立绘，可以上传"
+                label="结局插图"
+                hint="为结局专门设计一张立绘"
                 value={form.epilogueIllustration}
                 onChange={file => handleImage(file, "epilogueIllustration")}
                 onClear={() => update("epilogueIllustration", "")}
                 aspect="aspect-[2/3]"
+                required
               />
               <div className="text-[12px] text-foreground/75 leading-relaxed border border-accent/20 bg-accent/5 p-4 self-start">
                 <div className="font-bold text-accent mb-1 tracking-wider">关于结局插图</div>
-                这一张是<span className="text-white">可选的</span>。
-                如果你希望结局段落里有一张专门为这一刻设计的画面（例如：角色背影远去、墓碑前的剪影、新生时的黎明），
-                可以自己设计好后上传到这里。它会出现在通关结算的结局画面中。
-                如果不上传，系统会用角色的"详情立绘"作为结局画面。
+                请为结局段落专门设计一张画面（例如：角色背影远去、墓碑前的剪影、新生时的黎明）。
+                它会出现在通关结算的结局画面中，是这个角色故事的最后一帧。
               </div>
             </div>
           </Section>
 
           {/* SECTION: Preferences */}
-          <Section title="个人侧写（选填）" subtitle="PROFILE · 让角色有生活感的细节">
+          <Section title="个人侧写" subtitle="PROFILE · 让角色有生活感的细节 · 全部必填">
+            <div className="border border-red-400/30 bg-red-400/5 p-4 mb-4 text-[11px] text-red-200/80 font-mono leading-relaxed">
+              本章节<span className="text-white">每一栏都需要填写</span>。喜好 / 厌恶各至少 1 项，让角色更立体真实。
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Field label="喜欢的颜色">
+              <Field label="喜欢的颜色" required>
                 <Input value={form.favoriteColor} onChange={e => update("favoriteColor", e.target.value)} placeholder="例如：深紫 / 暗夜蓝" />
               </Field>
-              <Field label="座右铭">
+              <Field label="座右铭" required>
                 <Input value={form.motto} onChange={e => update("motto", e.target.value)} placeholder='例如："看不见我，就是最大的善意。"' />
               </Field>
             </div>
 
-            <Field label="喜好" hint="按回车添加，可填多个">
+            <Field label="喜好" required hint="按回车添加，至少 1 项">
               <div className="flex gap-2">
                 <Input
                   value={likeInput}
@@ -687,7 +734,7 @@ export default function CreateOC() {
               <TagList tags={form.likes} onRemove={t => removeTag("likes", t)} variant="primary" />
             </Field>
 
-            <Field label="厌恶" hint="按回车添加，可填多个">
+            <Field label="厌恶" required hint="按回车添加，至少 1 项">
               <div className="flex gap-2">
                 <Input
                   value={dislikeInput}
@@ -702,7 +749,7 @@ export default function CreateOC() {
               <TagList tags={form.dislikes} onRemove={t => removeTag("dislikes", t)} variant="danger" />
             </Field>
 
-            <Field label="生活习惯">
+            <Field label="生活习惯" required>
               <Textarea value={form.habits} onChange={e => update("habits", e.target.value)} placeholder="角色的日常小动作、习惯..." className="min-h-[80px] font-serif" />
             </Field>
           </Section>
@@ -743,7 +790,7 @@ export default function CreateOC() {
                       className="min-h-[70px]"
                     />
                   </Field>
-                  <Field label="技能特点" hint="天赋的触发条件或独特机制">
+                  <Field label="技能特点" required hint="天赋的触发条件或独特机制">
                     <Textarea
                       value={form.passiveSkill.characteristic}
                       onChange={e => update("passiveSkill", { ...form.passiveSkill, characteristic: e.target.value })}
@@ -754,19 +801,21 @@ export default function CreateOC() {
                 </div>
                 <ImageUpload
                   label="技能图标"
-                  hint="选填 · 方形小图"
+                  hint="方形小图"
                   value={form.passiveSkill.icon}
                   onChange={file => handlePassiveImage("icon", file)}
                   onClear={() => update("passiveSkill", { ...form.passiveSkill, icon: "" })}
                   aspect="aspect-square"
+                  required
                 />
                 <ImageUpload
                   label="释放技能的插图"
-                  hint="选填 · 竖图"
+                  hint="竖图"
                   value={form.passiveSkill.castIllustration}
                   onChange={file => handlePassiveImage("castIllustration", file)}
                   onClear={() => update("passiveSkill", { ...form.passiveSkill, castIllustration: "" })}
                   aspect="aspect-[2/3]"
+                  required
                 />
               </div>
             </div>
@@ -781,7 +830,7 @@ export default function CreateOC() {
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-xs font-mono text-primary tracking-widest">
                       主动技能 #{idx + 1}
-                      {idx === 0 && <span className="text-red-400 ml-1">*</span>}
+                      <span className="text-red-400 ml-1">*</span>
                     </div>
                     {form.activeSkills.length > 1 && (
                       <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => removeActiveSkill(idx)}>
@@ -792,10 +841,10 @@ export default function CreateOC() {
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_140px] gap-4">
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Field label="技能名" required={idx === 0}>
+                        <Field label="技能名" required>
                           <Input value={skill.name} onChange={e => updateActiveSkill(idx, { name: e.target.value })} placeholder="例如：紫电瞬杀" />
                         </Field>
-                        <Field label="类型">
+                        <Field label="类型" required>
                           <Select value={skill.type} onValueChange={v => updateActiveSkill(idx, { type: v as ActiveSkillForm["type"] })}>
                             <SelectTrigger><SelectValue placeholder="请选择" /></SelectTrigger>
                             <SelectContent>
@@ -804,7 +853,7 @@ export default function CreateOC() {
                           </Select>
                         </Field>
                       </div>
-                      <Field label="效果描述" required={idx === 0} hint="不需要数值，描述效果即可">
+                      <Field label="效果描述" required hint="不需要数值，描述效果即可">
                         <Textarea
                           value={skill.effectDescription}
                           onChange={e => updateActiveSkill(idx, { effectDescription: e.target.value })}
@@ -812,7 +861,7 @@ export default function CreateOC() {
                           className="min-h-[70px]"
                         />
                       </Field>
-                      <Field label="技能特点" hint="技能的独特机制 / 触发条件">
+                      <Field label="技能特点" required hint="技能的独特机制 / 触发条件">
                         <Textarea
                           value={skill.characteristic}
                           onChange={e => updateActiveSkill(idx, { characteristic: e.target.value })}
@@ -823,19 +872,21 @@ export default function CreateOC() {
                     </div>
                     <ImageUpload
                       label="技能图标"
-                      hint="选填 · 方形小图"
+                      hint="方形小图"
                       value={skill.icon}
                       onChange={file => handleActiveSkillImage(idx, "icon", file)}
                       onClear={() => updateActiveSkill(idx, { icon: "" })}
                       aspect="aspect-square"
+                      required
                     />
                     <ImageUpload
                       label="释放技能的插图"
-                      hint="选填 · 竖图"
+                      hint="竖图"
                       value={skill.castIllustration}
                       onChange={file => handleActiveSkillImage(idx, "castIllustration", file)}
                       onClear={() => updateActiveSkill(idx, { castIllustration: "" })}
                       aspect="aspect-[2/3]"
+                      required
                     />
                   </div>
                 </div>
