@@ -318,7 +318,6 @@ export default function CreateOC() {
   if (!form.birthday.trim()) errors.push("请填写生日");
   if (!form.zodiac) errors.push("请选择星座");
   if (!form.bloodType.trim()) errors.push("请填写血型");
-  if (form.linkedCharacters.length === 0) errors.push("请至少添加 1 个羁绊角色");
   if (!form.selectionLine.trim()) errors.push("请填写入场台词 / 选择台词");
 
   // 角色图片
@@ -443,7 +442,9 @@ export default function CreateOC() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `OC_${form.name}_${form.studentName}.json`;
+    const safeStudentId = form.studentId.trim().replace(/[^\w-]/g, "_");
+    const safeCharName = form.name.trim().replace(/[\\/:*?"<>|]/g, "_");
+    a.download = `${safeStudentId}_${safeCharName}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -512,8 +513,8 @@ export default function CreateOC() {
           <Section title="创作者信息" subtitle="CREATOR · 让老师知道这是谁的作品">
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6">
               <ImageUpload
-                label="我的头像"
-                hint="AIGC 创作 · 可以选择卡通头像或者非本人头像"
+                label="上传作者风格头像"
+                hint="可选择卡通头像或非本人头像 · 建议 512 × 512"
                 value={form.studentAvatar}
                 onChange={file => handleImage(file, "studentAvatar")}
                 onClear={() => update("studentAvatar", "")}
@@ -609,7 +610,7 @@ export default function CreateOC() {
               </Field>
             </div>
 
-            <Field label="羁绊角色" required hint="按回车添加，至少填 1 个">
+            <Field label="羁绊角色（选填）" hint="按回车添加，可填多个；也可以留空">
               <div className="flex gap-2">
                 <Input
                   value={linkInput}
@@ -690,7 +691,7 @@ export default function CreateOC() {
             <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-6 mt-2">
               <ImageUpload
                 label="结局插图"
-                hint="为结局专门设计一张立绘"
+                hint="竖图 · 建议 1024 × 1536"
                 value={form.epilogueIllustration}
                 onChange={file => handleImage(file, "epilogueIllustration")}
                 onClear={() => update("epilogueIllustration", "")}
@@ -801,7 +802,7 @@ export default function CreateOC() {
                 </div>
                 <ImageUpload
                   label="技能图标"
-                  hint="方形小图"
+                  hint="方形 · 建议 256 × 256"
                   value={form.passiveSkill.icon}
                   onChange={file => handlePassiveImage("icon", file)}
                   onClear={() => update("passiveSkill", { ...form.passiveSkill, icon: "" })}
@@ -810,7 +811,7 @@ export default function CreateOC() {
                 />
                 <ImageUpload
                   label="释放技能的插图"
-                  hint="竖图"
+                  hint="竖图 · 建议 1024 × 1536"
                   value={form.passiveSkill.castIllustration}
                   onChange={file => handlePassiveImage("castIllustration", file)}
                   onClear={() => update("passiveSkill", { ...form.passiveSkill, castIllustration: "" })}
@@ -872,7 +873,7 @@ export default function CreateOC() {
                     </div>
                     <ImageUpload
                       label="技能图标"
-                      hint="方形小图"
+                      hint="方形 · 建议 256 × 256"
                       value={skill.icon}
                       onChange={file => handleActiveSkillImage(idx, "icon", file)}
                       onClear={() => updateActiveSkill(idx, { icon: "" })}
@@ -881,7 +882,7 @@ export default function CreateOC() {
                     />
                     <ImageUpload
                       label="释放技能的插图"
-                      hint="竖图"
+                      hint="竖图 · 建议 1024 × 1536"
                       value={skill.castIllustration}
                       onChange={file => handleActiveSkillImage(idx, "castIllustration", file)}
                       onClear={() => updateActiveSkill(idx, { castIllustration: "" })}
@@ -905,7 +906,7 @@ export default function CreateOC() {
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <ImageUpload
                 label="头像"
-                hint="256 × 256"
+                hint="方形 · 建议 512 × 512"
                 value={form.avatar}
                 onChange={file => handleImage(file, "avatar")}
                 onClear={() => update("avatar", "")}
@@ -914,7 +915,7 @@ export default function CreateOC() {
               />
               <ImageUpload
                 label="详情立绘"
-                hint="1024 × 1536"
+                hint="竖图 · 建议 1024 × 1536"
                 value={form.portrait}
                 onChange={file => handleImage(file, "portrait")}
                 onClear={() => update("portrait", "")}
@@ -923,7 +924,7 @@ export default function CreateOC() {
               />
               <ImageUpload
                 label="选择立绘"
-                hint="1024 × 1536"
+                hint="竖图 · 建议 1024 × 1536"
                 value={form.selectionPortrait}
                 onChange={file => handleImage(file, "selectionPortrait")}
                 onClear={() => update("selectionPortrait", "")}
