@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { characters } from "@/data/characters";
-import { ArrowLeft, BookOpen, X, FileText, Heart, ChevronLeft, Quote } from "lucide-react";
+import { ArrowLeft, BookOpen, X, FileText, Heart, ChevronLeft, Quote, User2, MessageSquareQuote, Gamepad2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,12 +16,14 @@ export default function CharacterDetail() {
   const { id } = useParams<{ id: string }>();
   const char = characters.find(c => c.id === id);
   const [storyOpen, setStoryOpen] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('dossier');
 
   if (!char || char.locked) return <NotFound />;
 
   const ext = char.extendedBackground;
   const pref = char.preferences;
+  const creator = char.creator;
 
   return (
     <div className="min-h-screen bg-[#0a0612] text-foreground flex relative overflow-hidden">
@@ -29,23 +31,53 @@ export default function CharacterDetail() {
 
       {/* Left Panel: Details — dossier feel */}
       <div className="w-1/2 h-screen border-r border-border/50 bg-background/95 backdrop-blur-md z-10 flex flex-col font-mono">
-        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-border/30">
+        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-border/30 gap-3">
           {viewMode === 'dossier' ? (
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7">
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7 shrink-0">
               <Link href="/team">
                 <ArrowLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
                 返回编队
               </Link>
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={() => setViewMode('dossier')} className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7">
+            <Button variant="ghost" size="sm" onClick={() => setViewMode('dossier')} className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7 shrink-0">
               <ChevronLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
               返回基础档案
             </Button>
           )}
-          <div className="text-[10px] text-primary/40 tracking-widest font-mono">
-            {viewMode === 'dossier' ? 'DOSSIER' : 'CASE FILE'} · ID: {char.id.toUpperCase()}
-          </div>
+
+          {/* Right side: Creator HUD or fallback ID label */}
+          {creator ? (
+            <button
+              type="button"
+              onClick={() => setCreatorOpen(true)}
+              className="group flex items-center gap-2.5 border border-primary/30 hover:border-primary bg-primary/5 hover:bg-primary/15 transition-colors pl-1 pr-3 py-1 max-w-[260px]"
+              data-testid="button-creator-hud"
+              title="查看创作者信息与寄语"
+            >
+              {creator.avatar ? (
+                <img
+                  src={creator.avatar}
+                  alt={creator.name}
+                  className="w-7 h-7 object-cover border border-primary/40 shrink-0"
+                />
+              ) : (
+                <div className="w-7 h-7 bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
+                  <User2 className="h-3.5 w-3.5 text-primary" />
+                </div>
+              )}
+              <div className="flex flex-col items-start leading-tight min-w-0">
+                <span className="text-[8px] text-primary/60 tracking-[0.2em] font-mono uppercase">Creator · 创作者</span>
+                <span className="text-[11px] text-white font-medium truncate max-w-[160px] group-hover:text-primary transition-colors">
+                  {creator.name}
+                </span>
+              </div>
+            </button>
+          ) : (
+            <div className="text-[10px] text-primary/40 tracking-widest font-mono">
+              {viewMode === 'dossier' ? 'DOSSIER' : 'CASE FILE'} · ID: {char.id.toUpperCase()}
+            </div>
+          )}
         </div>
 
         {viewMode === 'dossier' && (
@@ -333,6 +365,96 @@ export default function CharacterDetail() {
           </ScrollArea>
         )}
       </div>
+
+      {/* Creator Info Dialog */}
+      {creator && (
+        <Dialog open={creatorOpen} onOpenChange={setCreatorOpen}>
+          <DialogContent
+            className="max-w-xl bg-[#0a0612]/98 border border-primary/40 rounded-none p-0 overflow-hidden [&>button]:hidden"
+            data-testid="dialog-creator"
+          >
+            <DialogTitle className="sr-only">{creator.name} · 创作者档案</DialogTitle>
+            <div className="relative">
+              <div className="scanlines opacity-40" />
+              <div className="px-8 pt-6 pb-4 border-b border-primary/20 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] text-primary/60 tracking-[0.3em] mb-1 font-mono">CREATOR PROFILE · 创 作 者 档 案</div>
+                  <div className="text-primary text-xs tracking-widest font-mono">本角色由该同学原创设计</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-white"
+                  onClick={() => setCreatorOpen(false)}
+                  data-testid="button-close-creator"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <div className="px-8 py-6 space-y-6">
+                {/* Identity row */}
+                <div className="flex items-center gap-4">
+                  {creator.avatar ? (
+                    <img
+                      src={creator.avatar}
+                      alt={creator.name}
+                      className="w-20 h-20 object-cover border border-primary/40"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 bg-primary/10 border border-primary/40 flex items-center justify-center">
+                      <User2 className="h-8 w-8 text-primary/60" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-2xl font-display font-bold text-white tracking-wider mb-1">{creator.name}</div>
+                    <div className="text-[11px] text-muted-foreground font-mono space-y-0.5">
+                      <div>学号 · {creator.studentId}</div>
+                      {creator.className && <div>班级 · {creator.className}</div>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message to character */}
+                {creator.messageToCharacter && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-accent tracking-[0.25em] font-mono uppercase mb-2">
+                      <MessageSquareQuote className="h-3 w-3" />
+                      想对 {char.name} 说的话 · MESSAGE
+                    </div>
+                    <div className="border-l-2 border-accent/60 bg-accent/5 px-4 py-3 font-serif text-[13px] leading-loose text-foreground/85 italic">
+                      "{creator.messageToCharacter}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Proposed game name */}
+                {creator.proposedGameName && (
+                  <div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-primary tracking-[0.25em] font-mono uppercase mb-2">
+                      <Gamepad2 className="h-3 w-3" />
+                      为游戏起的名字 · PROPOSED TITLE
+                    </div>
+                    <div className="border border-primary/30 bg-primary/5 px-4 py-2.5 text-[13px] text-white font-display tracking-wider">
+                      {creator.proposedGameName}
+                    </div>
+                  </div>
+                )}
+
+                {!creator.messageToCharacter && !creator.proposedGameName && (
+                  <div className="text-center text-muted-foreground/60 text-[12px] font-mono py-4">
+                    创作者暂未留下额外寄语
+                  </div>
+                )}
+              </div>
+
+              <div className="px-8 py-3 border-t border-primary/20 text-[10px] text-muted-foreground/50 tracking-widest font-mono text-center">
+                — 2025届设计8班 · AIGC 创作课题 —
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Background Story Dialog */}
       <Dialog open={storyOpen} onOpenChange={setStoryOpen}>

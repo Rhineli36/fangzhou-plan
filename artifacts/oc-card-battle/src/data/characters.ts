@@ -32,6 +32,18 @@ export interface Preferences {
   motto?: string;
 }
 
+/** 创作者信息 — 由提交表单录入，展示在角色档案右上角 */
+export interface CreatorInfo {
+  name: string;
+  studentId: string;
+  className?: string;
+  avatar?: string;
+  /** 想对这个角色说的话（角色寄语） */
+  messageToCharacter?: string;
+  /** 为游戏起的名字建议 */
+  proposedGameName?: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -53,6 +65,8 @@ export interface Character {
   portrait: string;
   selectionPortrait: string;
   skills: Skill[];
+  /** 创作者信息（提交者本人 / 学生） */
+  creator?: CreatorInfo;
   /** 待录入占位 — UI 中显示为锁定卡牌 */
   locked?: boolean;
 }
@@ -146,7 +160,15 @@ export const characters: Character[] = [
         effect: '对所有敌人造成 120% 伤害',
         upgrade: '附带流血效果，持续 2 回合'
       }
-    ]
+    ],
+    creator: {
+      name: '示例 · 林若曦',
+      studentId: '2025030101',
+      className: '2025届设计8班',
+      avatar: testAvatar,
+      messageToCharacter: '夜·蝶，谢谢你陪我度过那些写不完作业的深夜。希望有一天，你也能放下手里的刀，安安静静地看一场不会被警报打断的雨。',
+      proposedGameName: '方舟计划 · 夜环档案',
+    }
   },
   {
     id: 'char-02',
