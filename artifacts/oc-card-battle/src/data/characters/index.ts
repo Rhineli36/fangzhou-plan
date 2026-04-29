@@ -1,4 +1,5 @@
 import type { Character, Profession, Skill } from "../character-types";
+import shisiAvatarCutout from "@assets/shisi_avatar_cutout.png";
 
 // ─── Module aggregation (Vite glob) ─────────────────────────────────────────
 const modules = import.meta.glob<{ default: unknown }>("./*.{ts,json}", { eager: true });
@@ -156,6 +157,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const shield = character.skills.find(skill => skill.name === "残响视能");
     return {
       ...character,
+      avatar: shisiAvatarCutout,
       hp: 5,
       skills: [
         {

@@ -1,6 +1,7 @@
 import boss1Image from "@assets/BOSS1测试_1777349128576.png";
 import boss1BerserkImage from "@assets/BOSS特殊狂暴立绘_5回合内打出花葬.png";
 import boss1DefeatImage from "@assets/BOSS1_defeat.png";
+import boss1FlowerBurialImage from "@assets/BOSS_flower_burial.png";
 
 export type EnemyTier = '杂兵' | '精英' | '首领' | '终焉';
 
@@ -34,6 +35,7 @@ export interface Enemy {
   warning: string;
   image: string;
   berserkImage?: string;
+  flowerBurialImage?: string;
   defeatImage?: string;
 }
 
@@ -95,6 +97,7 @@ export const enemies: Enemy[] = [
     warning: '严禁直视其头骨双角之间的空洞——记录显示，连续直视超过 6 秒的调查员未能保持自我认知。',
     image: boss1Image,
     berserkImage: boss1BerserkImage,
+    flowerBurialImage: boss1FlowerBurialImage,
     defeatImage: boss1DefeatImage
   }
 ];

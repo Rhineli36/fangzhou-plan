@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,15 @@ interface BattleState {
   log: string[];
   finaleLine: string;
   recentHitIds: string[];
+  flowerBurialFlash: boolean;
+}
+
+interface IntroSlide {
+  kind: "boss" | "talent" | "start";
+  title: string;
+  subtitle: string;
+  image?: string;
+  line: string;
 }
 
 const victoryLines = [
@@ -272,7 +281,7 @@ function createInitialState(team: Character[]): BattleState {
   const base: BattleState = {
     turn: 1,
     energy: 5,
-    maxHand: 5,
+    maxHand: 6,
     drawPerTurn: 3,
     phase: "player",
     fighters,
@@ -292,6 +301,7 @@ function createInitialState(team: Character[]): BattleState {
     log: ["战斗开始。方舟小队遭遇兽骨花冠。", ...talentLogs],
     finaleLine: "",
     recentHitIds: [],
+    flowerBurialFlash: false,
   };
 
   return drawCards(base, 5);
@@ -314,7 +324,8 @@ function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Figh
 
 function applyBossDamage(state: BattleState, amount: number, logs: string[]): BattleState {
   let boss = { ...state.boss, hp: Math.max(0, state.boss.hp - amount) };
-  if (boss.charging) {
+  let flowerBurialFlash = state.flowerBurialFlash;
+  if (boss.charging && !boss.flowerBurial) {
     const damageTaken = boss.charging.damageTaken + amount;
     if (damageTaken >= 5) {
       logs.push("蓄力被打断：荆棘皇冕未能释放。");
@@ -326,9 +337,10 @@ function applyBossDamage(state: BattleState, amount: number, logs: string[]): Ba
   if (!boss.flowerBurial && boss.hp > 0 && boss.hp < 10) {
     boss.flowerBurial = true;
     boss.berserk = state.turn <= 5;
+    flowerBurialFlash = true;
     logs.push(boss.berserk ? "特殊狂暴：5 回合内触发花葬。" : "花葬触发：兽骨花冠进入第二阶段。");
   }
-  return { ...state, boss };
+  return { ...state, boss, flowerBurialFlash };
 }
 
 export default function Battle() {
@@ -344,12 +356,65 @@ export default function Battle() {
   const [state, setState] = useState<BattleState>(() => createInitialState(team));
   const [targetingCard, setTargetingCard] = useState<BattleCard | null>(null);
   const [playedCard, setPlayedCard] = useState<BattleCard | null>(null);
+  const [discardMode, setDiscardMode] = useState(false);
+  const [bossHit, setBossHit] = useState(false);
   const alive = state.fighters.filter(fighter => fighter.hp > 0);
-  const flowerImage = state.boss.berserk ? currentBoss.berserkImage : currentBoss.image;
+  const flowerImage = state.boss.berserk ? currentBoss.berserkImage : currentBoss.flowerBurialImage ?? currentBoss.image;
+  const introSlides = useMemo<IntroSlide[]>(() => {
+    const talentSlides = team
+      .map<IntroSlide | null>(character => {
+        const talent = getTalent(character);
+        if (!talent) return null;
+        return {
+          kind: "talent" as const,
+          title: talent.name,
+          subtitle: character.name,
+          image: talent.icon || character.avatar,
+          line: talent.effect || talent.description || "天赋技能启动。",
+        };
+      })
+      .filter((slide): slide is IntroSlide => slide !== null);
+    return [
+      {
+        kind: "boss",
+        title: currentBoss.name,
+        subtitle: currentBoss.codename,
+        image: currentBoss.image,
+        line: "花还没有开完。你们也是来看我的吗？",
+      },
+      ...talentSlides,
+      {
+        kind: "start",
+        title: "战斗开始",
+        subtitle: `TURN ${state.turn}`,
+        line: "方舟小队进入战斗。",
+      },
+    ];
+  }, [team, state.turn]);
+  const [introIndex, setIntroIndex] = useState(0);
+  const introActive = introIndex < introSlides.length;
+
+  useEffect(() => {
+    if (!introActive) return;
+    const slide = introSlides[introIndex];
+    const timer = window.setTimeout(() => setIntroIndex(index => index + 1), slide?.kind === "start" ? 900 : 1600);
+    return () => window.clearTimeout(timer);
+  }, [introActive, introIndex, introSlides]);
+
+  useEffect(() => {
+    if (!state.flowerBurialFlash) return;
+    const timer = window.setTimeout(() => {
+      setState(prev => ({ ...prev, flowerBurialFlash: false }));
+    }, 1600);
+    return () => window.clearTimeout(timer);
+  }, [state.flowerBurialFlash]);
 
   const restart = () => {
     setTargetingCard(null);
     setPlayedCard(null);
+    setDiscardMode(false);
+    setBossHit(false);
+    setIntroIndex(0);
     setState(createInitialState(team));
   };
 
@@ -382,6 +447,11 @@ export default function Battle() {
         next = resolveSkill(next, card, logs, true, targetIndex);
       }
 
+      if (next.boss.hp < beforeBossHp) {
+        setBossHit(true);
+        window.setTimeout(() => setBossHit(false), 520);
+      }
+
       if (card.skill.name === "幻海囚笼" && beforeBossHp > 0 && next.boss.hp <= 0) {
         next = { ...next, hand: [...next.hand, card] };
       }
@@ -400,6 +470,17 @@ export default function Battle() {
   };
 
   const onCardClick = (card: BattleCard) => {
+    if (discardMode) {
+      if (state.phase !== "player") return;
+      setState(prev => ({
+        ...prev,
+        hand: prev.hand.filter(c => c.uid !== card.uid),
+        discard: [...prev.discard, card],
+        log: [`弃置「${card.skill.name}」。`, ...prev.log].slice(0, 14),
+      }));
+      setDiscardMode(false);
+      return;
+    }
     const cost = getCardCost(card, state.fighters);
     if (state.phase !== "player" || state.energy < cost) return;
     if (state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0) return;
@@ -418,6 +499,7 @@ export default function Battle() {
   const endTurn = () => {
     if (state.phase !== "player") return;
     setTargetingCard(null);
+    setDiscardMode(false);
     setState(prev => runEnemyTurn(prev));
   };
 
@@ -481,7 +563,14 @@ export default function Battle() {
                 </div>
               </div>
 
-              <img src={state.boss.flowerBurial ? flowerImage : currentBoss.image} alt={currentBoss.name} className="max-h-[44vh] max-w-[66%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]" />
+              <motion.div
+                animate={bossHit ? { x: [0, -10, 10, -6, 6, 0], scale: [1, 1.02, 1] } : { x: 0, scale: 1 }}
+                transition={{ duration: 0.46 }}
+                className="relative flex w-full flex-1 items-center justify-center"
+              >
+                {bossHit && <div className="absolute inset-0 bg-red-500/12 mix-blend-screen" />}
+                <img src={state.boss.flowerBurial ? flowerImage : currentBoss.image} alt={currentBoss.name} className="max-h-[44vh] max-w-[66%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]" />
+              </motion.div>
 
               <div className="w-full border border-white/10 bg-black/40 p-3">
                 <div className="mb-2 text-xs font-bold tracking-widest text-white/50">战斗记录</div>
@@ -494,8 +583,12 @@ export default function Battle() {
             <section className="border border-white/10 bg-black/35 p-4">
               <h2 className="mb-3 text-sm font-black tracking-widest text-primary">行动面板</h2>
 
-              <div className="mb-4 flex items-center justify-center border border-primary/40 bg-primary/10 px-4 py-3">
-                <div className="flex flex-col items-center">
+              <div className="mb-4 grid grid-cols-2 overflow-hidden border border-primary/40 bg-primary/10">
+                <div className="flex flex-col items-center justify-center border-r border-primary/30 px-4 py-3">
+                  <div className="font-mono text-4xl font-black leading-none text-cyan-100">{state.turn}</div>
+                  <div className="mt-1 text-[10px] font-bold tracking-[0.25em] text-cyan-100/60">TURN</div>
+                </div>
+                <div className="flex flex-col items-center justify-center px-4 py-3">
                   <Zap className="mb-1 h-9 w-9 fill-yellow-300 text-yellow-300 drop-shadow-[0_0_18px_rgba(250,204,21,0.7)]" />
                   <div className="font-mono text-4xl font-black leading-none text-yellow-100">{state.energy}</div>
                   <div className="mt-1 text-[10px] font-bold tracking-[0.25em] text-yellow-100/60">ENERGY</div>
@@ -521,6 +614,17 @@ export default function Battle() {
               <Button onClick={endTurn} disabled={state.phase !== "player"} className="mb-4 w-full rounded-none bg-primary hover:bg-primary/80">
                 结束回合
               </Button>
+              <Button
+                onClick={() => {
+                  setDiscardMode(mode => !mode);
+                  setTargetingCard(null);
+                }}
+                disabled={state.phase !== "player" || state.hand.length === 0}
+                variant="outline"
+                className={`mb-4 w-full rounded-none border-white/20 bg-transparent text-white ${discardMode ? "border-yellow-300 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.22)]" : ""}`}
+              >
+                {discardMode ? "点击一张手牌弃置" : "主动弃牌"}
+              </Button>
               <Button onClick={restart} variant="outline" className="w-full rounded-none border-white/20 bg-transparent text-white">
                 <RotateCcw className="mr-2 h-4 w-4" />
                 重新开始
@@ -532,14 +636,14 @@ export default function Battle() {
             <div className="grid min-w-max grid-flow-col auto-cols-[132px] gap-2">
               {state.hand.map(card => {
                 const cost = getCardCost(card, state.fighters);
-                const disabled = state.phase !== "player" || state.energy < cost || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
+                const disabled = state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
                 return (
                   <BattleCardButton
                     key={card.uid}
                     card={card}
                     cost={cost}
                     disabled={disabled}
-                    selected={targetingCard?.uid === card.uid}
+                    selected={targetingCard?.uid === card.uid || discardMode}
                     onClick={() => onCardClick(card)}
                   />
                 );
@@ -549,6 +653,8 @@ export default function Battle() {
         </div>
 
         <AnimatePresence>
+          {introActive && <IntroOverlay slide={introSlides[introIndex]} />}
+          {state.flowerBurialFlash && <FlowerBurialOverlay image={flowerImage ?? currentBoss.image} berserk={state.boss.berserk} />}
           {playedCard && <PlayedCardAnimation card={playedCard} />}
           {(state.phase === "victory" || state.phase === "defeat") && (
             <ResultOverlay phase={state.phase} line={state.finaleLine} onRestart={restart} />
@@ -582,9 +688,11 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
 
   if (card.skill.name === "幻海囚笼") {
     let next = applyBossDamage(state, 3, logs);
-    if (next.boss.charging) {
+    if (next.boss.charging && !next.boss.flowerBurial) {
       next = { ...next, boss: { ...next.boss, charging: null, crownCooldown: next.boss.flowerBurial ? 0 : 3 } };
       logs.push("幻海囚笼强制打断蓄力。");
+    } else if (next.boss.charging && next.boss.flowerBurial) {
+      logs.push("花葬状态下的荆棘皇冕无法被打断。");
     }
     logs.push("幻海囚笼造成 3 点伤害。");
     return next;
@@ -798,6 +906,68 @@ function startPlayerTurn(state: BattleState): BattleState {
 
   const draw = next.drawPerTurn + (next.turn <= 3 ? 1 : 0);
   return drawCards(next, draw);
+}
+
+function IntroOverlay({ slide }: { slide?: IntroSlide }) {
+  if (!slide) return null;
+  const isStart = slide.kind === "start";
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/88 p-8"
+    >
+      <motion.div
+        key={`${slide.kind}-${slide.title}`}
+        initial={{ opacity: 0, y: 24, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -18, scale: 1.03 }}
+        transition={{ duration: 0.35 }}
+        className={`relative grid w-full overflow-hidden border border-primary/35 bg-[#0c0712] shadow-[0_0_60px_rgba(168,85,247,0.28)] ${isStart ? "max-w-4xl place-items-center p-14 text-center" : "max-w-5xl grid-cols-[0.9fr_1.1fr]"}`}
+      >
+        {!isStart && (
+          <div className="relative h-[520px] overflow-hidden bg-black">
+            {slide.image && <img src={slide.image} alt="" className="h-full w-full object-cover" />}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c0712]/50" />
+          </div>
+        )}
+        <div className={isStart ? "" : "flex flex-col justify-center p-10"}>
+          <div className="mb-3 font-mono text-xs font-bold tracking-[0.35em] text-primary">{slide.subtitle}</div>
+          <h2 className={`${isStart ? "text-7xl" : "text-5xl"} mb-6 font-black tracking-wider text-white`}>{slide.title}</h2>
+          <div className="border-l-4 border-primary bg-white/5 px-5 py-4 text-xl leading-loose text-white/85">
+            {slide.line}
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function FlowerBurialOverlay({ image, berserk }: { image: string; berserk: boolean }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="pointer-events-none fixed inset-0 z-[45] flex items-center justify-center bg-red-950/45"
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0, y: 40 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 1.06, opacity: 0, y: -30 }}
+        transition={{ duration: 0.5 }}
+        className="relative w-full max-w-5xl overflow-hidden border border-red-400/50 bg-black shadow-[0_0_80px_rgba(248,113,113,0.45)]"
+      >
+        <img src={image} alt="" className="h-[560px] w-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
+        <div className="absolute bottom-8 left-8">
+          <div className="mb-2 font-mono text-sm tracking-[0.35em] text-red-200">{berserk ? "SPECIAL BERSERK" : "PHASE SHIFT"}</div>
+          <div className="text-6xl font-black tracking-wider text-white">花葬</div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }
 
 function FighterPanel({ fighter, selectable, isHit, onClick }: { fighter: Fighter; selectable: boolean; isHit: boolean; onClick: () => void }) {
