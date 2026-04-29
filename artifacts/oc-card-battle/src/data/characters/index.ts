@@ -29,6 +29,8 @@ function fromSubmissionJson(raw: Record<string, unknown>): Character | null {
       cost: 0,
       effect: (p.characteristic as string) || "",
       upgrade: "",
+      icon: (p.icon as string) || undefined,
+      castIllustration: (p.castIllustration as string) || undefined,
     });
   }
 
@@ -42,6 +44,8 @@ function fromSubmissionJson(raw: Record<string, unknown>): Character | null {
         cost: 0,
         effect: (s.characteristic as string) || "",
         upgrade: "",
+        icon: (s.icon as string) || undefined,
+        castIllustration: (s.castIllustration as string) || undefined,
       });
     }
   }
@@ -100,12 +104,152 @@ function parseCharacter(raw: unknown): Character | null {
   return null;
 }
 
+function applyTeacherBattleOverrides(character: Character): Character {
+  if (character.creator?.studentId === "12250804") {
+    const talent = character.skills.find(skill => skill.type === "天赋");
+    const heal = character.skills.find(skill => skill.name === "雾愈之触");
+    const cage = character.skills.find(skill => skill.name === "幻海囚笼");
+    return {
+      ...character,
+      hp: 6,
+      skills: [
+        {
+          name: "雾海感知",
+          type: "天赋",
+          description: "团队前三回合，摸牌数 +1。",
+          range: "多体",
+          cost: 0,
+          effect: "第 1-3 回合，队伍每回合抽牌数 +1。",
+          upgrade: "",
+          icon: talent?.icon,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "雾愈之触",
+          type: "恢复",
+          description: "为指定队友恢复 1 点生命；若目标身上存在异常状态，按异常层数额外回复等量生命，并随机驱散最多 1 个异常状态。",
+          range: "单体",
+          cost: 1,
+          effect: "治疗 1 + 目标异常层数，并驱散 1 个异常。",
+          upgrade: "",
+          icon: heal?.icon,
+          castIllustration: heal?.castIllustration,
+        },
+        {
+          name: "幻海囚笼",
+          type: "异能",
+          description: "造成 3 点伤害，并强制造成伤害打断效果。若造成击杀，该卡片返回手中。",
+          range: "单体",
+          cost: 3,
+          effect: "造成 3 点伤害；若 BOSS 正在蓄力，强制打断。",
+          upgrade: "击杀目标时返回手牌。",
+          icon: cage?.icon,
+          castIllustration: cage?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250818") {
+    const talent = character.skills.find(skill => skill.type === "天赋");
+    const prayer = character.skills.find(skill => skill.name === "时序祷言");
+    const shield = character.skills.find(skill => skill.name === "残响视能");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "残响之躯",
+          type: "天赋",
+          description: "单数回合：有护盾的队友伤害卡牌额外造成 1 点伤害。双数回合：有护盾的队友免疫减益，护盾不消耗。",
+          range: "多体",
+          cost: 0,
+          effect: "奇数回合护盾队友伤害 +1；偶数回合护盾队友免疫减益。",
+          upgrade: "",
+          icon: talent?.icon,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "时序祷言",
+          type: "恢复",
+          description: "驱散全体队友身上的所有增益和减益，同时放弃当前手牌中所有和时祀相关的手牌。每丢弃 1 张，全体恢复 1 点生命。",
+          range: "多体",
+          cost: 2,
+          effect: "清除全队状态；弃置手牌中的时祀牌，每弃 1 张全体治疗 1。",
+          upgrade: "",
+          icon: prayer?.icon,
+          castIllustration: prayer?.castIllustration,
+        },
+        {
+          name: "残响视能",
+          type: "防御",
+          description: "为指定队友生成 1 层护盾。护盾可免疫一次直接伤害，触发后消耗。",
+          range: "单体",
+          cost: 2,
+          effect: "指定队友获得 1 层护盾。",
+          upgrade: "",
+          icon: shield?.icon,
+          castIllustration: shield?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.id === "test-01") {
+    const talent = character.skills.find(skill => skill.type === "天赋");
+    const zidian = character.skills.find(skill => skill.name === "紫电瞬杀");
+    const blade = character.skills.find(skill => skill.name === "虚空刃舞");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "暗影潜行",
+          type: "天赋",
+          description: "夜·蝶所有技能牌生效后，有 30% 几率再次生效，无需消耗手牌和能量。",
+          range: "单体",
+          cost: 0,
+          effect: "夜·蝶技能生效后，30% 概率复制本次效果一次。",
+          upgrade: "复制效果不会再次触发天赋。",
+          icon: talent?.icon,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "紫电瞬杀",
+          type: "攻击",
+          description: "造成 2 点单体伤害。当前回合每次打出或复制紫电瞬杀，都会使后续紫电瞬杀额外增加 1 点伤害。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；本回合每次生效后，后续紫电瞬杀伤害 +1。",
+          upgrade: "",
+          icon: zidian?.icon,
+          castIllustration: zidian?.castIllustration,
+        },
+        {
+          name: "虚空刃舞",
+          type: "攻击",
+          description: "对所有敌人造成 3 点伤害，并附加 1 层流血，持续 3 回合。",
+          range: "多体",
+          cost: 4,
+          effect: "全体敌人受到 3 点伤害，并获得 1 层流血。",
+          upgrade: "",
+          icon: blade?.icon,
+          castIllustration: blade?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  return character;
+}
+
 // ─── Aggregate ───────────────────────────────────────────────────────────────
 
 const loadedFromGlob: Character[] = Object.entries(modules)
   .filter(([path]) => !path.endsWith("/index.ts"))
   .map(([, mod]) => parseCharacter(mod.default))
-  .filter((c): c is Character => c !== null);
+  .filter((c): c is Character => c !== null)
+  .map(applyTeacherBattleOverrides);
 
 const seen = new Set<string>();
 const realCharacters: Character[] = [];
@@ -121,9 +265,20 @@ for (const c of loadedFromGlob) {
   realCharacters.push(c);
 }
 
+const rosterPriority = ["test-01", "12250804", "12250818"];
+
+function getRosterRank(character: Character): number {
+  const studentId = character.creator?.studentId;
+  const priorityId = rosterPriority.findIndex(
+    priority => character.id === priority || studentId === priority,
+  );
+  return priorityId === -1 ? Number.POSITIVE_INFINITY : priorityId;
+}
+
 realCharacters.sort((a, b) => {
-  if (a.id === "test-01") return -1;
-  if (b.id === "test-01") return 1;
+  const aRank = getRosterRank(a);
+  const bRank = getRosterRank(b);
+  if (aRank !== bRank) return aRank - bRank;
   return a.id.localeCompare(b.id);
 });
 

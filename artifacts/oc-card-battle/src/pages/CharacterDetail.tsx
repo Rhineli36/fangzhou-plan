@@ -2,22 +2,44 @@ import { useState } from "react";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { characters } from "@/data/characters";
-import { ArrowLeft, BookOpen, X, FileText, Heart, ChevronLeft, Quote, User2, MessageSquareQuote, Gamepad2 } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  FileText,
+  FolderOpen,
+  Gamepad2,
+  Heart,
+  Lock,
+  MessageSquareQuote,
+  Quote,
+  Shield,
+  Sword,
+  User2,
+  Volume2,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import NotFound from "@/pages/not-found";
 
-type ViewMode = 'dossier' | 'background';
+type DetailTab = "profile" | "equipment" | "voice";
+type ProfileView = "dossier" | "archive";
+
+const tabs: Array<{ id: DetailTab; label: string; sub: string; icon: typeof FolderOpen }> = [
+  { id: "profile", label: "档案", sub: "PROFILE", icon: FolderOpen },
+  { id: "equipment", label: "装备", sub: "EQUIPMENT", icon: Sword },
+  { id: "voice", label: "语音", sub: "VOICE", icon: Volume2 },
+];
 
 export default function CharacterDetail() {
   const { id } = useParams<{ id: string }>();
   const char = characters.find(c => c.id === id);
+  const [activeTab, setActiveTab] = useState<DetailTab>("profile");
+  const [profileView, setProfileView] = useState<ProfileView>("dossier");
   const [storyOpen, setStoryOpen] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('dossier');
 
   if (!char || char.locked) return <NotFound />;
 
@@ -26,506 +48,444 @@ export default function CharacterDetail() {
   const creator = char.creator;
 
   return (
-    <div className="min-h-screen bg-[#0a0612] text-foreground flex relative overflow-hidden">
-      <div className="scanlines" />
+    <div className="min-h-screen overflow-hidden bg-[#f5f2ff] text-[#22183d]">
+      <div className="relative min-h-screen">
+        <div className="absolute inset-0 bg-[linear-gradient(115deg,#ffffff_0%,#f7f4ff_42%,#ece7ff_42%,#ffffff_73%,#d8cff8_73%,#f7f4ff_100%)]" />
+        <div className="absolute inset-0 opacity-55 bg-[radial-gradient(circle_at_72%_12%,rgba(120,86,210,0.28),transparent_28%),radial-gradient(circle_at_20%_82%,rgba(45,148,172,0.16),transparent_30%)]" />
+        <div className="absolute right-0 top-0 h-full w-[48%] bg-[#5b40a8]/10 [clip-path:polygon(26%_0,100%_0,100%_100%,0_100%)]" />
+        <div className="absolute bottom-8 right-12 select-none text-[16rem] font-black leading-none text-[#6a52c8]/10">
+          {char.id === "test-01" ? "01" : char.creator?.studentId?.slice(-2) ?? "OC"}
+        </div>
 
-      {/* Left Panel: Details — dossier feel */}
-      <div className="w-1/2 h-screen border-r border-border/50 bg-background/95 backdrop-blur-md z-10 flex flex-col font-mono">
-        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-border/30 gap-3">
-          {viewMode === 'dossier' ? (
-            <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7 shrink-0">
+        <div className="relative z-10 flex min-h-screen">
+          <aside className="flex w-[104px] shrink-0 flex-col border-r border-[#6a52c8]/15 bg-white/55 shadow-[10px_0_40px_rgba(84,67,160,0.08)] backdrop-blur">
+            <Button asChild variant="ghost" className="m-3 h-10 justify-start px-2 text-[#332653] hover:bg-[#ece7ff]">
               <Link href="/team">
-                <ArrowLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
-                返回编队
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                返回
               </Link>
             </Button>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => setViewMode('dossier')} className="text-muted-foreground hover:text-white group -ml-2 text-xs h-7 shrink-0">
-              <ChevronLeft className="mr-1.5 h-3 w-3 transition-transform group-hover:-translate-x-1" />
-              返回基础档案
-            </Button>
-          )}
+            <div className="mt-4 flex flex-1 flex-col items-stretch gap-2 px-3">
+              {tabs.map(tab => {
+                const Icon = tab.icon;
+                const selected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      if (tab.id !== "profile") setProfileView("dossier");
+                    }}
+                    className={`flex min-h-20 flex-col items-center justify-center border px-2 py-3 text-center transition ${
+                      selected
+                        ? "border-[#7b4ded] bg-[#7b4ded] text-white shadow-[0_12px_30px_rgba(103,72,202,0.28)]"
+                        : "border-transparent bg-white/40 text-[#6d6380] hover:border-[#7b4ded]/25 hover:bg-white"
+                    }`}
+                  >
+                    <Icon className="mb-2 h-5 w-5" />
+                    <span className="text-sm font-bold">{tab.label}</span>
+                    <span className={`mt-0.5 text-[9px] ${selected ? "text-white/70" : "text-[#8a7ba7]"}`}>{tab.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="pb-6 text-center text-[10px] text-[#7a6d98] [writing-mode:vertical-rl] mx-auto">
+              CHARACTER FILE
+            </div>
+          </aside>
 
-          {/* Right side: Creator HUD or fallback ID label */}
-          {creator ? (
-            <button
-              type="button"
-              onClick={() => setCreatorOpen(true)}
-              className="group flex items-center gap-2.5 border border-primary/30 hover:border-primary bg-primary/5 hover:bg-primary/15 transition-colors pl-1 pr-3 py-1 max-w-[260px]"
-              data-testid="button-creator-hud"
-              title="查看创作者信息与寄语"
-            >
-              {creator.avatar ? (
-                <img
-                  src={creator.avatar}
-                  alt={creator.name}
-                  className="w-7 h-7 object-cover border border-primary/40 shrink-0"
-                />
-              ) : (
-                <div className="w-7 h-7 bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
-                  <User2 className="h-3.5 w-3.5 text-primary" />
+          <main className="grid min-h-screen flex-1 grid-cols-[minmax(520px,0.95fr)_minmax(440px,1.05fr)]">
+            <section className="relative z-20 flex h-screen flex-col px-12 py-8">
+              <div className="mb-6 flex items-start justify-between gap-6">
+                <div>
+                  <div className="mb-2 font-mono text-xs text-[#31284b]">FILE No.{char.id.toUpperCase()}</div>
+                  <div className="mb-2 text-sm font-bold text-[#6d4bd4]">{char.title}</div>
+                  <h1 className="text-6xl font-black leading-none text-[#25153e] drop-shadow-[0_8px_22px_rgba(104,82,189,0.18)]">
+                    {char.name}
+                  </h1>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Badge className="rounded-none border-[#7b4ded] bg-[#7b4ded] px-4 py-1 text-sm text-white">
+                      {char.profession}
+                    </Badge>
+                    <Badge className="rounded-none border-[#211c32] bg-[#211c32] px-4 py-1 text-sm text-white">
+                      {char.positioning}
+                    </Badge>
+                    <Badge className="rounded-none border-[#211c32] bg-[#211c32] px-4 py-1 text-sm text-white">
+                      HP {char.hp}/{char.hp}
+                    </Badge>
+                  </div>
                 </div>
-              )}
-              <div className="flex flex-col items-start leading-tight min-w-0">
-                <span className="text-[8px] text-primary/60 tracking-[0.2em] font-mono uppercase">Creator · 创作者</span>
-                <span className="text-[11px] text-white font-medium truncate max-w-[160px] group-hover:text-primary transition-colors">
-                  {creator.name}
-                </span>
-              </div>
-            </button>
-          ) : (
-            <div className="text-[10px] text-primary/40 tracking-widest font-mono">
-              {viewMode === 'dossier' ? 'DOSSIER' : 'CASE FILE'} · ID: {char.id.toUpperCase()}
-            </div>
-          )}
-        </div>
 
-        {viewMode === 'dossier' && (
-        <ScrollArea className="flex-1 px-10 py-8">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="text-[10px] text-muted-foreground tracking-[0.3em] mb-2 font-mono">FILE No.{char.id.toUpperCase()}</div>
-            <div className="text-primary font-medium tracking-widest mb-1 text-xs">{char.title}</div>
-            <h1 className="text-4xl font-bold font-display tracking-wider mb-3 glow-text">{char.name}</h1>
-            <div className="flex flex-wrap gap-1.5">
-              <Badge className="bg-primary/20 text-primary hover:bg-primary/30 border-primary/50 rounded-none px-2 py-0 text-[10px] h-5">
-                {char.profession}
-              </Badge>
-              <Badge variant="secondary" className="rounded-none px-2 py-0 text-[10px] h-5 bg-secondary text-secondary-foreground">
-                {char.positioning}
-              </Badge>
-              <Badge variant="outline" className="rounded-none px-2 py-0 text-[10px] h-5 border-border">
-                HP {char.hp}/{char.hp}
-              </Badge>
-            </div>
-          </div>
-
-          <Separator className="bg-border/50 mb-6" />
-
-          {/* Stats Grid — compact dossier feel */}
-          <div className="grid grid-cols-3 gap-x-4 gap-y-3 mb-6 text-[11px] border border-border/40 p-4 bg-card/30">
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">性别</div>
-              <div className="font-medium text-white">{char.gender}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">年龄</div>
-              <div className="font-medium text-white">{char.age}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">星座</div>
-              <div className="font-medium text-white">{char.zodiac ?? '—'}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">生日</div>
-              <div className="font-medium text-white">{char.birthday}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">血型</div>
-              <div className="font-medium text-white">{char.bloodType}</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground/70 mb-0.5 tracking-wider text-[9px] uppercase">定位</div>
-              <div className="font-medium text-white">{char.positioning}</div>
-            </div>
-          </div>
-
-          {/* Links */}
-          <div className="mb-6">
-            <div className="text-muted-foreground/70 text-[9px] mb-2 tracking-widest uppercase">羁绊档案</div>
-            <div className="flex flex-wrap gap-1.5">
-              {char.linkedCharacters.length > 0 ? char.linkedCharacters.map((name, i) => (
-                <span key={i} className="text-[11px] border border-border/50 px-2 py-0.5 bg-card text-card-foreground">
-                  {name}
-                </span>
-              )) : (
-                <span className="text-[11px] text-muted-foreground/60 italic">无羁绊记录</span>
-              )}
-            </div>
-          </div>
-
-          {/* Background Story Buttons */}
-          <div className="mb-8 grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              className="rounded-none border-primary/40 bg-primary/5 hover:bg-primary/15 hover:border-primary text-primary text-[11px] h-10 tracking-widest font-mono"
-              onClick={() => setStoryOpen(true)}
-            >
-              <BookOpen className="mr-1.5 h-3.5 w-3.5" />
-              背景故事
-            </Button>
-            {(ext || pref) && (
-              <Button
-                variant="outline"
-                className="rounded-none border-accent/40 bg-accent/5 hover:bg-accent/15 hover:border-accent text-accent text-[11px] h-10 tracking-widest font-mono"
-                onClick={() => setViewMode('background')}
-              >
-                <FileText className="mr-1.5 h-3.5 w-3.5" />
-                完整背景档案
-              </Button>
-            )}
-          </div>
-
-          {/* Skills */}
-          <div>
-            <h3 className="text-xs font-display font-bold mb-4 flex items-center text-primary tracking-widest uppercase">
-              <span className="w-2.5 h-2.5 bg-primary mr-2 block"></span>
-              战斗技能 / SKILLS
-            </h3>
-            <div className="space-y-3">
-              {char.skills.map((skill, index) => (
-                <div key={index} className="bg-card/40 border border-border p-3 hover:border-primary/50 transition-colors">
-                  <div className="flex gap-3">
-                    {/* Skill Icon Placeholder */}
-                    <div className="w-12 h-12 bg-secondary flex-shrink-0 flex items-center justify-center border border-border/50 text-muted-foreground text-[10px] tracking-wider">
-                      {skill.type}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1.5 gap-2">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-bold text-sm text-white">{skill.name}</h4>
-                          <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-primary/30 text-primary/80 rounded-none">
-                            {skill.range}
-                          </Badge>
+                {creator && (
+                  <div className="relative w-[294px]">
+                    <button
+                      type="button"
+                      onClick={() => setCreatorOpen(open => !open)}
+                      className={`flex w-full items-center gap-3 border bg-white/75 p-2 text-left shadow-[0_12px_28px_rgba(62,45,123,0.08)] transition ${
+                        creatorOpen ? "border-[#7b4ded]/70" : "border-[#7b4ded]/25 hover:border-[#7b4ded]/60"
+                      }`}
+                    >
+                      {creator.avatar ? (
+                        <img src={creator.avatar} alt={creator.name} className="h-12 w-12 object-cover" />
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center bg-[#ede8ff]">
+                          <User2 className="h-5 w-5 text-[#7b4ded]" />
                         </div>
-                        {skill.cost > 0 && (
-                          <div className="text-[10px] font-mono text-accent whitespace-nowrap">
-                            消耗 {skill.cost} EN
+                      )}
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold text-[#8b7fac]">CREATOR</div>
+                        <div className="truncate text-sm font-black text-[#231a37]">{creator.name}</div>
+                      </div>
+                    </button>
+
+                    {creatorOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="absolute right-0 top-[calc(100%+8px)] z-50 w-full border border-[#7b4ded]/35 bg-white/95 p-4 text-left shadow-[0_18px_44px_rgba(62,45,123,0.16)] backdrop-blur"
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-black tracking-[0.22em] text-[#7b4ded]">CREATOR PROFILE</div>
+                            <div className="mt-1 text-lg font-black text-[#231a37]">{creator.name}</div>
+                            <div className="mt-1 text-xs leading-relaxed text-[#6d6380]">
+                              学号：{creator.studentId}
+                              {creator.className && <><br />班级：{creator.className}</>}
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-[#7c7195]" onClick={() => setCreatorOpen(false)}>
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {creator.messageToCharacter && (
+                          <div className="mb-3 border-l-4 border-[#7b4ded] bg-[#f3efff] px-3 py-2 font-serif text-xs leading-relaxed text-[#43365e]">
+                            <div className="mb-1 flex items-center gap-1.5 font-sans text-[10px] font-bold text-[#6d4bd4]">
+                              <MessageSquareQuote className="h-3.5 w-3.5" />
+                              想对 {char.name} 说的话
+                            </div>
+                            {creator.messageToCharacter}
                           </div>
                         )}
-                      </div>
-                      <p className="text-[11px] text-muted-foreground mb-2 leading-relaxed">
-                        {skill.description}
-                      </p>
-                      <div className="text-[11px] text-white bg-secondary/40 p-1.5 border-l-2 border-primary mb-1.5">
-                        {skill.effect}
-                      </div>
-                      <div className="text-[10px] text-accent italic">
-                        进阶: {skill.upgrade}
-                      </div>
-                    </div>
+                        {creator.proposedGameName && (
+                          <div className="border border-[#d8d1ef] bg-[#fbfaff] px-3 py-2 text-xs text-[#43365e]">
+                            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold text-[#6d4bd4]">
+                              <Gamepad2 className="h-3.5 w-3.5" />
+                              为游戏起的名字
+                            </div>
+                            {creator.proposedGameName}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-10 pt-4 border-t border-border/30 text-[9px] text-muted-foreground/40 tracking-widest text-center font-mono">
-            — END OF FILE —
-          </div>
-        </ScrollArea>
-        )}
-
-        {viewMode === 'background' && (
-          <ScrollArea className="flex-1">
-            <motion.div
-              key="bg-view"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4 }}
-              className="px-10 py-8"
-            >
-              {/* Heading */}
-              <div className="mb-6">
-                <div className="text-[10px] text-accent/70 tracking-[0.3em] mb-2 font-mono">CASE FILE · No.{char.id.toUpperCase()} · CONFIDENTIAL</div>
-                <div className="text-accent text-xs tracking-widest mb-1 font-mono">{char.title}</div>
-                <h1 className="text-4xl font-bold font-display tracking-wider mb-2 glow-text">{char.name}</h1>
-                <div className="text-[11px] text-muted-foreground font-mono">完整背景档案 · FULL BACKGROUND RECORD</div>
+                )}
               </div>
 
-              <div className="border border-accent/20 bg-accent/[0.03] p-4 mb-6 text-[10px] font-mono text-accent/70 leading-relaxed">
-                以下内容由调查者整合自实地访谈、残存档案与官方记录，仅供战术参考。部分细节可能存在主观润色。
+              <ScrollArea className="min-h-0 flex-1 pr-3">
+                {activeTab === "profile" && (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                    {profileView === "dossier" ? (
+                    <>
+                    <section className="border border-[#d8d1ef] bg-white/78 p-5 shadow-[0_18px_42px_rgba(64,47,118,0.08)]">
+                      <div className="grid grid-cols-3 gap-x-8 gap-y-4 text-sm">
+                        <Info label="性别" value={char.gender} />
+                        <Info label="年龄" value={char.age} />
+                        <Info label="星座" value={char.zodiac} />
+                        <Info label="生日" value={char.birthday} />
+                        <Info label="血型" value={char.bloodType} />
+                        <Info label="定位" value={char.positioning} />
+                      </div>
+
+                      <div className="mt-5 border-t border-[#d8d1ef] pt-4">
+                        <div className="mb-2 text-xs font-bold text-[#59497a]">羁绊标签</div>
+                        <div className="flex flex-wrap gap-2">
+                          {char.linkedCharacters.length > 0 ? (
+                            char.linkedCharacters.map(name => (
+                              <span key={name} className="border border-[#d8d1ef] bg-[#f5f1ff] px-3 py-1 text-xs font-medium text-[#31284b]">
+                                {name}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-[#8a7ba7]">无羁绊记录</span>
+                          )}
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="grid grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        onClick={() => setStoryOpen(true)}
+                        className="h-14 rounded-none border border-[#7b4ded] bg-[#7b4ded] text-white shadow-[0_12px_24px_rgba(103,72,202,0.24)] hover:bg-[#6f41de]"
+                      >
+                        <BookOpen className="mr-2 h-5 w-5" />
+                        背景故事
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => setProfileView("archive")}
+                        className="h-14 rounded-none border border-[#211c32] bg-[#211c32] text-white hover:bg-[#342b4b]"
+                      >
+                        <FileText className="mr-2 h-5 w-5" />
+                        完整背景档案
+                      </Button>
+                    </section>
+
+                    {pref && (
+                      <section className="border border-[#d8d1ef] bg-white/70 p-5">
+                        <h2 className="mb-4 flex items-center gap-2 text-sm font-black text-[#256b89]">
+                          <Heart className="h-4 w-4" />
+                          附录 · 个人侧写 / PROFILE
+                        </h2>
+                        <div className="space-y-3 text-sm">
+                          {pref.favoriteColor && <InfoWide label="喜欢的颜色" value={pref.favoriteColor} />}
+                          {pref.likes && pref.likes.length > 0 && <TagRow label="喜好" tags={pref.likes} color="cyan" />}
+                          {pref.dislikes && pref.dislikes.length > 0 && <TagRow label="厌恶" tags={pref.dislikes} color="red" />}
+                          {pref.habits && <InfoWide label="习惯" value={pref.habits} />}
+                          {pref.motto && (
+                            <div className="grid grid-cols-[96px_1fr] gap-4">
+                              <div className="text-xs text-[#7c7195]">座右铭</div>
+                              <div className="flex gap-2 font-serif italic text-[#43365e]">
+                                <Quote className="mt-1 h-4 w-4 shrink-0 text-[#2d93b2]" />
+                                {pref.motto}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    )}
+
+                    <section className="border border-[#d8d1ef] bg-white/78 p-5 shadow-[0_18px_42px_rgba(64,47,118,0.08)]">
+                      <h2 className="mb-4 text-sm font-black text-[#6d4bd4]">战斗技能 / SKILLS</h2>
+                      <div className="space-y-3">
+                        {char.skills.map((skill, index) => (
+                          <div key={`${skill.name}-${index}`} className="grid grid-cols-[64px_1fr] gap-4 border border-[#e1daf4] bg-[#fbfaff] p-3">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#8c61f0] bg-[#7b4ded] text-xs font-bold text-white shadow-[0_0_24px_rgba(123,77,237,0.22)]">
+                              {skill.type}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="mb-1 flex items-center justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h3 className="font-black text-[#211c32]">{skill.name}</h3>
+                                  <Badge className="rounded-none bg-[#ece7ff] text-[#6d4bd4] hover:bg-[#ece7ff]">{skill.range}</Badge>
+                                </div>
+                                {skill.cost > 0 && <span className="text-xs font-bold text-[#7b4ded]">消耗 {skill.cost} EN</span>}
+                              </div>
+                              <p className="text-sm leading-relaxed text-[#5d526f]">{skill.description}</p>
+                              <div className="mt-2 border-l-4 border-[#7b4ded] bg-[#f0ecff] px-3 py-1 text-sm text-[#342b4b]">{skill.effect}</div>
+                              {skill.upgrade && <div className="mt-1 text-xs font-bold text-[#2d93b2]">进阶：{skill.upgrade}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                    </>
+                    ) : (
+                      <ArchivePanel charName={char.name} ext={ext} onBack={() => setProfileView("dossier")} />
+                    )}
+                  </motion.div>
+                )}
+
+                {activeTab === "equipment" && <LockedPanel icon={Sword} title="装备档案" />}
+                {activeTab === "voice" && <LockedPanel icon={Volume2} title="语音记录" />}
+              </ScrollArea>
+            </section>
+
+            <section className="relative h-screen overflow-hidden">
+              <div className="absolute right-10 top-12 text-right">
+                <div className="text-2xl font-black text-[#6d4bd4]/50">{char.name.toUpperCase()}</div>
+                <div className="mt-1 text-xs font-bold text-[#7a6d98]">{char.title}</div>
               </div>
 
-              {/* Origin */}
-              {ext?.origin && (
-                <section className="mb-7">
-                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
-                    <span className="w-2 h-2 bg-accent mr-2 block" />
-                    第一章 · 身世起源 / ORIGIN
-                  </h2>
-                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
-                    {ext.origin}
+              <div className="absolute inset-x-0 bottom-0 top-8 flex items-end justify-center">
+                {char.portrait ? (
+                  <img
+                    src={char.portrait}
+                    alt={char.name}
+                    className="relative z-10 max-h-[96vh] max-w-[88%] object-contain drop-shadow-[0_30px_60px_rgba(48,36,95,0.28)]"
+                  />
+                ) : (
+                  <div className="mb-24 flex h-[62vh] w-[52%] items-center justify-center border border-[#7b4ded]/20 bg-white/45 text-4xl font-black text-[#7b4ded]/30">
+                    {char.profession}
                   </div>
-                </section>
-              )}
-
-              {/* Family */}
-              {ext?.family && (
-                <section className="mb-7">
-                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
-                    <span className="w-2 h-2 bg-accent mr-2 block" />
-                    第二章 · 家人 / FAMILY
-                  </h2>
-                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
-                    {ext.family}
-                  </div>
-                </section>
-              )}
-
-              {/* Past Experiences */}
-              {ext?.pastExperiences && (
-                <section className="mb-7">
-                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
-                    <span className="w-2 h-2 bg-accent mr-2 block" />
-                    第三章 · 过往遭遇 / PAST
-                  </h2>
-                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
-                    {ext.pastExperiences}
-                  </div>
-                </section>
-              )}
-
-              {/* Current Situation */}
-              {ext?.currentSituation && (
-                <section className="mb-7">
-                  <h2 className="text-xs font-display font-bold mb-2 flex items-center text-accent tracking-widest uppercase">
-                    <span className="w-2 h-2 bg-accent mr-2 block" />
-                    第四章 · 当前状态 / PRESENT
-                  </h2>
-                  <div className="font-serif text-[13px] leading-loose text-foreground/85 whitespace-pre-wrap pl-4 border-l border-accent/30">
-                    {ext.currentSituation}
-                  </div>
-                </section>
-              )}
-
-              {/* Personal preferences */}
-              {pref && (
-                <section className="mb-7">
-                  <h2 className="text-xs font-display font-bold mb-3 flex items-center text-accent tracking-widest uppercase">
-                    <Heart className="w-3 h-3 mr-2" />
-                    附录 · 个人侧写 / PROFILE
-                  </h2>
-                  <div className="border border-accent/20 bg-card/30 p-4 space-y-3 text-[12px]">
-                    {pref.favoriteColor && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">喜欢的颜色</div>
-                        <div className="text-white font-medium">{pref.favoriteColor}</div>
-                      </div>
-                    )}
-                    {pref.likes && pref.likes.length > 0 && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">喜好</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {pref.likes.map((like, i) => (
-                            <span key={i} className="text-[11px] border border-accent/30 px-2 py-0.5 bg-accent/5 text-foreground/90">{like}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {pref.dislikes && pref.dislikes.length > 0 && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">厌恶</div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {pref.dislikes.map((d, i) => (
-                            <span key={i} className="text-[11px] border border-red-500/30 px-2 py-0.5 bg-red-500/5 text-foreground/90">{d}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {pref.habits && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">习惯</div>
-                        <div className="text-foreground/85 leading-relaxed">{pref.habits}</div>
-                      </div>
-                    )}
-                    {pref.motto && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-20 shrink-0 text-[10px] text-muted-foreground/70 tracking-widest uppercase mt-0.5">座右铭</div>
-                        <div className="text-foreground/85 italic font-serif flex gap-1">
-                          <Quote className="h-3 w-3 mt-1 text-accent/50 shrink-0" />
-                          {pref.motto}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              {/* Epilogue */}
-              {ext?.epilogue && (
-                <section className="mb-7">
-                  <div className="font-serif text-[12px] leading-loose text-accent/80 italic text-center px-6 py-4 border-t border-b border-accent/20">
-                    {ext.epilogue}
-                  </div>
-                </section>
-              )}
-
-              {!ext && !pref && (
-                <div className="text-center py-16 text-muted-foreground/60 text-sm font-mono tracking-widest">
-                  此角色暂无完整背景档案
-                </div>
-              )}
-
-              <div className="mt-8 pt-4 border-t border-accent/20 text-[9px] text-muted-foreground/40 tracking-widest text-center font-mono">
-                — END OF CASE FILE · 档案归档于"夜环"加密层 —
+                )}
               </div>
-            </motion.div>
-          </ScrollArea>
-        )}
+
+              <div className="absolute bottom-8 right-8 flex flex-col gap-2">
+                {[Shield, Sword, BookOpen, Volume2].map((Icon, index) => (
+                  <div key={index} className="flex h-10 w-10 items-center justify-center border border-[#6a52c8]/20 bg-white/55 text-[#6d4bd4]">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          </main>
+        </div>
       </div>
 
-      {/* Creator Info Dialog */}
-      {creator && (
-        <Dialog open={creatorOpen} onOpenChange={setCreatorOpen}>
-          <DialogContent
-            className="max-w-xl bg-[#0a0612]/98 border border-primary/40 rounded-none p-0 overflow-hidden [&>button]:hidden"
-            data-testid="dialog-creator"
-          >
-            <DialogTitle className="sr-only">{creator.name} · 创作者档案</DialogTitle>
-            <div className="relative">
-              <div className="scanlines opacity-40" />
-              <div className="px-8 pt-6 pb-4 border-b border-primary/20 flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] text-primary/60 tracking-[0.3em] mb-1 font-mono">CREATOR PROFILE · 创 作 者 档 案</div>
-                  <div className="text-primary text-xs tracking-widest font-mono">本角色由该同学原创设计</div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-white"
-                  onClick={() => setCreatorOpen(false)}
-                  data-testid="button-close-creator"
-                >
-                  <X className="h-5 w-5" />
-                </Button>
-              </div>
+      <TextDialog
+        open={storyOpen}
+        onOpenChange={setStoryOpen}
+        title={`${char.name} · 背景故事`}
+        subtitle={char.title}
+        body={char.backgroundStory}
+      />
+    </div>
+  );
+}
 
-              <div className="px-8 py-6 space-y-6">
-                {/* Identity row */}
-                <div className="flex items-center gap-4">
-                  {creator.avatar ? (
-                    <img
-                      src={creator.avatar}
-                      alt={creator.name}
-                      className="w-20 h-20 object-cover border border-primary/40"
-                    />
-                  ) : (
-                    <div className="w-20 h-20 bg-primary/10 border border-primary/40 flex items-center justify-center">
-                      <User2 className="h-8 w-8 text-primary/60" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-2xl font-display font-bold text-white tracking-wider mb-1">{creator.name}</div>
-                    <div className="text-[11px] text-muted-foreground font-mono space-y-0.5">
-                      <div>学号 · {creator.studentId}</div>
-                      {creator.className && <div>班级 · {creator.className}</div>}
-                    </div>
-                  </div>
-                </div>
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[52px_1fr] gap-2">
+      <span className="text-xs font-bold text-[#7c7195]">{label}</span>
+      <span className="font-bold text-[#302544]">{value || "—"}</span>
+    </div>
+  );
+}
 
-                {/* Message to character */}
-                {creator.messageToCharacter && (
-                  <div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-accent tracking-[0.25em] font-mono uppercase mb-2">
-                      <MessageSquareQuote className="h-3 w-3" />
-                      想对 {char.name} 说的话 · MESSAGE
-                    </div>
-                    <div className="border-l-2 border-accent/60 bg-accent/5 px-4 py-3 font-serif text-[13px] leading-loose text-foreground/85 italic">
-                      "{creator.messageToCharacter}"
-                    </div>
-                  </div>
-                )}
+function InfoWide({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[96px_1fr] gap-4">
+      <div className="text-xs text-[#7c7195]">{label}</div>
+      <div className="leading-relaxed text-[#43365e]">{value}</div>
+    </div>
+  );
+}
 
-                {/* Proposed game name */}
-                {creator.proposedGameName && (
-                  <div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-primary tracking-[0.25em] font-mono uppercase mb-2">
-                      <Gamepad2 className="h-3 w-3" />
-                      为游戏起的名字 · PROPOSED TITLE
-                    </div>
-                    <div className="border border-primary/30 bg-primary/5 px-4 py-2.5 text-[13px] text-white font-display tracking-wider">
-                      {creator.proposedGameName}
-                    </div>
-                  </div>
-                )}
-
-                {!creator.messageToCharacter && !creator.proposedGameName && (
-                  <div className="text-center text-muted-foreground/60 text-[12px] font-mono py-4">
-                    创作者暂未留下额外寄语
-                  </div>
-                )}
-              </div>
-
-              <div className="px-8 py-3 border-t border-primary/20 text-[10px] text-muted-foreground/50 tracking-widest font-mono text-center">
-                — 2025届设计8班 · AIGC 创作课题 —
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Background Story Dialog */}
-      <Dialog open={storyOpen} onOpenChange={setStoryOpen}>
-        <DialogContent
-          className="max-w-3xl bg-[#0a0612]/98 border border-primary/40 rounded-none p-0 overflow-hidden [&>button]:hidden"
-        >
-          <DialogTitle className="sr-only">{char.name} 的背景故事</DialogTitle>
-          <div className="relative">
-            <div className="scanlines opacity-40" />
-            <div className="px-10 pt-8 pb-4 border-b border-primary/20 flex items-center justify-between">
-              <div>
-                <div className="text-[10px] text-primary/60 tracking-[0.3em] mb-1 font-mono">CLASSIFIED · BACKGROUND</div>
-                <div className="text-primary text-xs tracking-widest font-mono">{char.title}</div>
-                <h2 className="text-3xl font-display font-bold tracking-wider mt-1 glow-text">{char.name}</h2>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-white"
-                onClick={() => setStoryOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <ScrollArea className="max-h-[60vh] px-10 py-6">
-              <AnimatePresence>
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-foreground/85 leading-loose space-y-4 whitespace-pre-wrap font-serif text-[15px]"
-                >
-                  {char.backgroundStory}
-                </motion.div>
-              </AnimatePresence>
-            </ScrollArea>
-            <div className="px-10 py-3 border-t border-primary/20 text-[10px] text-muted-foreground/50 tracking-widest font-mono text-center">
-              — END OF RECORD —
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Right Panel: Portrait */}
-      <div className="w-1/2 h-screen relative flex items-center justify-center bg-black/20">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent opacity-50" />
-        
-        {char.portrait ? (
-          <img 
-            src={char.portrait} 
-            alt={char.name} 
-            className="max-h-full max-w-full object-contain p-8 drop-shadow-2xl z-10"
-            style={{ filter: "drop-shadow(0 0 30px rgba(168, 85, 247, 0.3))" }}
-          />
-        ) : (
-          <div className="w-2/3 h-2/3 bg-gradient-to-t from-primary/20 to-transparent flex flex-col items-center justify-center z-10 border border-primary/20">
-            <span className="text-6xl font-display font-bold text-primary/30 tracking-widest mb-4">{char.profession}</span>
-            <span className="text-xl text-muted-foreground/50 tracking-widest">NO IMAGE DATA</span>
-          </div>
-        )}
-        
-        {/* Decorative elements */}
-        <div className="absolute top-12 right-12 text-right font-mono text-primary/30 text-xs hidden lg:block">
-          <div>ID: {char.id.toUpperCase()}</div>
-          <div>STATUS: ACTIVE</div>
-          <div>LOC: UNKNOWN</div>
-        </div>
-        <div className="absolute bottom-12 right-12 text-right font-display text-primary/10 text-8xl font-bold uppercase tracking-tighter mix-blend-overlay">
-          {char.profession}
-        </div>
+function TagRow({ label, tags, color }: { label: string; tags: string[]; color: "cyan" | "red" }) {
+  const style = color === "cyan" ? "border-[#2d93b2] bg-[#eaf8fc] text-[#256b89]" : "border-[#a24862] bg-[#fff0f4] text-[#80324b]";
+  return (
+    <div className="grid grid-cols-[96px_1fr] gap-4">
+      <div className="text-xs text-[#7c7195]">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {tags.map(tag => (
+          <span key={tag} className={`border px-3 py-1 text-xs ${style}`}>
+            {tag}
+          </span>
+        ))}
       </div>
     </div>
+  );
+}
+
+function LockedPanel({ icon: Icon, title }: { icon: typeof Lock; title: string }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex min-h-[520px] items-center justify-center border border-[#d8d1ef] bg-white/65">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#ede8ff] text-[#7b4ded]">
+          <Icon className="h-7 w-7" />
+        </div>
+        <div className="text-xl font-black text-[#302544]">{title}</div>
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-[#8a7ba7]">
+          <Lock className="h-4 w-4" />
+          DATA LOCKED
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function TextDialog({
+  open,
+  onOpenChange,
+  title,
+  subtitle,
+  body,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  subtitle: string;
+  body: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[86vh] max-w-3xl rounded-none border-[#d8d1ef] bg-white p-0 text-[#22183d] [&>button]:hidden">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <div className="flex items-center justify-between border-b border-[#d8d1ef] px-8 py-5">
+          <div>
+            <div className="text-xs font-bold text-[#7b4ded]">{subtitle}</div>
+            <h2 className="text-2xl font-black">{title}</h2>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <ScrollArea className="max-h-[62vh] px-8 py-6">
+          <div className="whitespace-pre-wrap font-serif text-base leading-loose text-[#43365e]">{body}</div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ArchivePanel({
+  charName,
+  ext,
+  onBack,
+}: {
+  charName: string;
+  ext?: {
+    origin?: string;
+    family?: string;
+    pastExperiences?: string;
+    currentSituation?: string;
+    epilogue?: string;
+  };
+  onBack: () => void;
+}) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.25 }}
+      className="border border-[#d8d1ef] bg-white/76 shadow-[0_18px_42px_rgba(64,47,118,0.08)]"
+    >
+      <div className="flex items-center justify-between border-b border-[#d8d1ef] px-5 py-4">
+        <div>
+          <div className="text-[10px] font-bold tracking-[0.25em] text-[#7b4ded]">FULL BACKGROUND ARCHIVES</div>
+          <h2 className="mt-1 text-2xl font-black text-[#25153e]">{charName} · 完整背景档案</h2>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onBack}
+          className="rounded-none text-[#6d6380] hover:bg-[#ece7ff] hover:text-[#25153e]"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          返回基础档案
+        </Button>
+      </div>
+
+      <div className="space-y-7 px-6 py-6">
+        <div className="border border-[#d8d1ef] bg-[#f8f5ff] px-4 py-3 text-xs leading-relaxed text-[#6d6380]">
+          以下记录由调查者整合自角色设定、访谈与残存档案。结局故事目前为测试期可见，正式版将改为通关后解锁。
+        </div>
+        <ArchiveSection title="第一章 · 身世起源 / ORIGIN" text={ext?.origin} />
+        <ArchiveSection title="第二章 · 家人 / FAMILY" text={ext?.family} />
+        <ArchiveSection title="第三章 · 过往遭遇 / PAST" text={ext?.pastExperiences} />
+        <ArchiveSection title="第四章 · 当前状态 / PRESENT" text={ext?.currentSituation} />
+        <ArchiveSection title="结局故事 / EPILOGUE" text={ext?.epilogue} accent />
+        {!ext && (
+          <div className="py-16 text-center text-sm font-bold tracking-widest text-[#8a7ba7]">
+            此角色暂无完整背景档案
+          </div>
+        )}
+      </div>
+    </motion.section>
+  );
+}
+
+function ArchiveSection({ title, text, accent }: { title: string; text?: string; accent?: boolean }) {
+  if (!text) return null;
+  return (
+    <section className={accent ? "border-t border-[#d8d1ef] pt-5" : ""}>
+      <h3 className="mb-2 text-sm font-black text-[#6d4bd4]">{title}</h3>
+      <div className={`whitespace-pre-wrap font-serif leading-loose ${accent ? "text-center text-[#256b89]" : "text-[#43365e]"}`}>
+        {text}
+      </div>
+    </section>
   );
 }

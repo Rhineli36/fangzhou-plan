@@ -158,6 +158,27 @@ const emptyForm: FormState = {
   activeSkills: [{ ...emptyActive }],
 };
 
+function stripImagesForDraft(form: FormState): FormState {
+  return {
+    ...form,
+    studentAvatar: "",
+    epilogueIllustration: "",
+    avatar: "",
+    portrait: "",
+    selectionPortrait: "",
+    passiveSkill: {
+      ...form.passiveSkill,
+      icon: "",
+      castIllustration: "",
+    },
+    activeSkills: form.activeSkills.map(skill => ({
+      ...skill,
+      icon: "",
+      castIllustration: "",
+    })),
+  };
+}
+
 export default function CreateOC() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [linkInput, setLinkInput] = useState("");
@@ -215,11 +236,11 @@ export default function CreateOC() {
 
   const handleSaveDraft = () => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripImagesForDraft(form)));
       const t = new Date().toLocaleTimeString("zh-CN");
       setSavedAt(t);
     } catch {
-      alert("保存失败：浏览器存储空间可能已满（图片过大）。");
+      alert("保存失败：浏览器本地草稿空间不足。请先生成提交文件，或清空旧草稿后再试。");
     }
   };
 
@@ -451,7 +472,6 @@ export default function CreateOC() {
     URL.revokeObjectURL(url);
 
     setSubmitted(json);
-    handleSaveDraft();
   };
 
   return (
@@ -475,7 +495,7 @@ export default function CreateOC() {
           </div>
           <div className="flex items-center gap-2">
             {savedAt && (
-              <span className="text-[10px] text-emerald-400/70 font-mono mr-2">已自动保存草稿 · {savedAt}</span>
+              <span className="text-[10px] text-emerald-400/70 font-mono mr-2">已保存文字草稿 · {savedAt}</span>
             )}
             <Button variant="outline" size="sm" onClick={handleSaveDraft} className="rounded-none text-xs">
               <Save className="mr-1.5 h-3.5 w-3.5" />
@@ -937,6 +957,8 @@ export default function CreateOC() {
               战斗中"释放技能"的画面已经在上方<span className="text-white">每个技能</span>里单独上传了，
               所以这一节只放<span className="text-white">头像 / 详情立绘 / 选择立绘</span>三张就够了。
               单张图片大小请控制在 4MB 以内。
+              <br />
+              为避免浏览器草稿空间不足，"保存草稿"只保存文字内容；最终生成的 JSON 提交文件仍会完整包含所有图片。
             </div>
           </Section>
 

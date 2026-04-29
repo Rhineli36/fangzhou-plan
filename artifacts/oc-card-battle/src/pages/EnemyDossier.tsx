@@ -183,6 +183,24 @@ export default function EnemyDossier() {
                 </div>
               </div>
 
+              {/* Mechanics */}
+              <div className="mb-6">
+                <h3 className="text-xs font-display font-bold mb-3 flex items-center text-red-300 tracking-widest uppercase">
+                  <AlertTriangle className="w-3.5 h-3.5 mr-2" />
+                  状态与阶段 / MECHANICS
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {boss.mechanics.map((mechanic, i) => (
+                    <div key={i} className="border border-red-500/20 bg-red-950/10 p-3">
+                      <div className="text-[10px] text-red-200 tracking-widest mb-1">
+                        {String(i + 1).padStart(2, '0')} · {mechanic.name}
+                      </div>
+                      <div className="text-[11px] text-foreground/80 leading-relaxed">{mechanic.description}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Strategy tips */}
               <div className="mb-6">
                 <h3 className="text-xs font-display font-bold mb-3 flex items-center text-red-300 tracking-widest uppercase">

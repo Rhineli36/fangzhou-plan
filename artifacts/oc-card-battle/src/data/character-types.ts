@@ -10,6 +10,8 @@ export interface Skill {
   cost: number;
   effect: string;
   upgrade: string;
+  icon?: string;
+  castIllustration?: string;
 }
 
 export interface ExtendedBackground {
