@@ -67,6 +67,7 @@ interface BattleState {
   finaleLine: string;
   recentHitIds: string[];
   flowerBurialFlash: boolean;
+  flowerBurialRevealed: boolean;
 }
 
 interface IntroSlide {
@@ -302,6 +303,7 @@ function createInitialState(team: Character[]): BattleState {
     finaleLine: "",
     recentHitIds: [],
     flowerBurialFlash: false,
+    flowerBurialRevealed: false,
   };
 
   return drawCards(base, 5);
@@ -325,6 +327,7 @@ function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Figh
 function applyBossDamage(state: BattleState, amount: number, logs: string[]): BattleState {
   let boss = { ...state.boss, hp: Math.max(0, state.boss.hp - amount) };
   let flowerBurialFlash = state.flowerBurialFlash;
+  let flowerBurialRevealed = state.flowerBurialRevealed;
   if (boss.charging && !boss.flowerBurial) {
     const damageTaken = boss.charging.damageTaken + amount;
     if (damageTaken >= 5) {
@@ -338,9 +341,10 @@ function applyBossDamage(state: BattleState, amount: number, logs: string[]): Ba
     boss.flowerBurial = true;
     boss.berserk = state.turn <= 5;
     flowerBurialFlash = true;
+    flowerBurialRevealed = false;
     logs.push(boss.berserk ? "特殊狂暴：5 回合内触发花葬。" : "花葬触发：兽骨花冠进入第二阶段。");
   }
-  return { ...state, boss, flowerBurialFlash };
+  return { ...state, boss, flowerBurialFlash, flowerBurialRevealed };
 }
 
 export default function Battle() {
@@ -404,8 +408,8 @@ export default function Battle() {
   useEffect(() => {
     if (!state.flowerBurialFlash) return;
     const timer = window.setTimeout(() => {
-      setState(prev => ({ ...prev, flowerBurialFlash: false }));
-    }, 1600);
+      setState(prev => ({ ...prev, flowerBurialFlash: false, flowerBurialRevealed: true }));
+    }, 3000);
     return () => window.clearTimeout(timer);
   }, [state.flowerBurialFlash]);
 
@@ -507,7 +511,15 @@ export default function Battle() {
     <div className="min-h-screen overflow-hidden bg-[#090510] text-white">
       <div className="scanlines" />
       <div className="relative min-h-screen">
-        <img src={currentBoss.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25 blur-[2px]" />
+        <motion.img
+          key={state.boss.flowerBurial && state.flowerBurialRevealed ? "flower-bg" : "normal-bg"}
+          src={state.boss.flowerBurial && state.flowerBurialRevealed ? flowerImage ?? currentBoss.image : currentBoss.image}
+          alt=""
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.25 }}
+          transition={{ duration: 0.7 }}
+          className="absolute inset-0 h-full w-full object-cover blur-[2px]"
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-[#090510]/70 via-[#090510]/82 to-[#090510]" />
 
         <div className="relative z-10 grid min-h-screen grid-rows-[auto_1fr_auto] gap-3 p-4">
@@ -569,7 +581,11 @@ export default function Battle() {
                 className="relative flex w-full flex-1 items-center justify-center"
               >
                 {bossHit && <div className="absolute inset-0 bg-red-500/12 mix-blend-screen" />}
-                <img src={state.boss.flowerBurial ? flowerImage : currentBoss.image} alt={currentBoss.name} className="max-h-[44vh] max-w-[66%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]" />
+                <img
+                  src={state.boss.flowerBurial && state.flowerBurialRevealed ? flowerImage ?? currentBoss.image : currentBoss.image}
+                  alt={currentBoss.name}
+                  className="max-h-[44vh] max-w-[66%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]"
+                />
               </motion.div>
 
               <div className="w-full border border-white/10 bg-black/40 p-3">
@@ -945,6 +961,7 @@ function IntroOverlay({ slide }: { slide?: IntroSlide }) {
 }
 
 function FlowerBurialOverlay({ image, berserk }: { image: string; berserk: boolean }) {
+  const line = berserk ? "这么快就让花开了……那就一起留下吧。" : "花……终于开了。你们听见了吗？";
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -953,17 +970,32 @@ function FlowerBurialOverlay({ image, berserk }: { image: string; berserk: boole
       className="pointer-events-none fixed inset-0 z-[45] flex items-center justify-center bg-red-950/45"
     >
       <motion.div
-        initial={{ scale: 0.92, opacity: 0, y: 40 }}
+        initial={{ scale: 0.9, opacity: 0, y: 48 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 1.06, opacity: 0, y: -30 }}
-        transition={{ duration: 0.5 }}
+        exit={{ scale: 1.08, opacity: 0, y: -30 }}
+        transition={{ duration: 0.55 }}
         className="relative w-full max-w-5xl overflow-hidden border border-red-400/50 bg-black shadow-[0_0_80px_rgba(248,113,113,0.45)]"
       >
-        <img src={image} alt="" className="h-[560px] w-full object-cover" />
+        <motion.img
+          src={image}
+          alt=""
+          initial={{ scale: 1.08 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 2.2, ease: "easeOut" }}
+          className="h-[560px] w-full object-cover"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/15 to-transparent" />
         <div className="absolute bottom-8 left-8">
           <div className="mb-2 font-mono text-sm tracking-[0.35em] text-red-200">{berserk ? "SPECIAL BERSERK" : "PHASE SHIFT"}</div>
           <div className="text-6xl font-black tracking-wider text-white">花葬</div>
+          <motion.div
+            initial={{ opacity: 0, width: 0 }}
+            animate={{ opacity: 1, width: "auto" }}
+            transition={{ delay: 0.65, duration: 1.3, ease: "easeOut" }}
+            className="mt-4 overflow-hidden whitespace-nowrap border-l-4 border-red-300 bg-black/45 px-5 py-3 text-2xl font-serif text-red-50"
+          >
+            “{line}”
+          </motion.div>
         </div>
       </motion.div>
     </motion.div>
