@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { characters, Character, Skill } from "@/data/characters";
+import { characters, Character, Skill, isCharacterBattleReady } from "@/data/characters";
 import { currentBoss } from "@/data/enemies";
 import { useTeamStore } from "@/store/teamStore";
 import { ArrowLeft, RotateCcw, Sparkles, Swords, Zap } from "lucide-react";
@@ -352,9 +352,9 @@ export default function Battle() {
   const team = useMemo(() => {
     const selected = selectedCharacterIds
       .map(id => characters.find(character => character.id === id))
-      .filter((character): character is Character => !!character && !character.locked);
+      .filter((character): character is Character => !!character && !character.locked && isCharacterBattleReady(character));
     if (selected.length === 3) return selected;
-    return characters.filter(character => !character.locked).slice(0, 3);
+    return characters.filter(character => !character.locked && isCharacterBattleReady(character)).slice(0, 3);
   }, [selectedCharacterIds]);
 
   const [state, setState] = useState<BattleState>(() => createInitialState(team));
@@ -397,13 +397,6 @@ export default function Battle() {
   }, [team, state.turn]);
   const [introIndex, setIntroIndex] = useState(0);
   const introActive = introIndex < introSlides.length;
-
-  useEffect(() => {
-    if (!introActive) return;
-    const slide = introSlides[introIndex];
-    const timer = window.setTimeout(() => setIntroIndex(index => index + 1), slide?.kind === "start" ? 900 : 1600);
-    return () => window.clearTimeout(timer);
-  }, [introActive, introIndex, introSlides]);
 
   useEffect(() => {
     if (!state.flowerBurialFlash) return;
@@ -548,6 +541,18 @@ export default function Battle() {
                   onClick={() => onFighterClick(index)}
                 />
               ))}
+              {targetingCard && (
+                <div className="border-2 border-yellow-300 bg-yellow-300/15 p-3 shadow-[0_0_24px_rgba(250,204,21,0.25)]">
+                  <div className="text-xs font-mono font-bold tracking-[0.25em] text-yellow-200">TARGET SELECT</div>
+                  <div className="mt-1 text-sm font-black text-white">正在选择「{targetingCard.skill.name}」的目标</div>
+                  <Button
+                    onClick={() => setTargetingCard(null)}
+                    className="mt-3 h-10 w-full rounded-none border border-yellow-200 bg-yellow-300 text-black hover:bg-yellow-200"
+                  >
+                    取消目标选择
+                  </Button>
+                </div>
+              )}
             </section>
 
             <section className="relative flex min-h-0 flex-col items-center justify-between border border-red-500/20 bg-black/35 p-4">
@@ -648,8 +653,8 @@ export default function Battle() {
             </section>
           </main>
 
-          <footer className="min-h-[136px] overflow-x-auto border-t border-white/10 pt-2">
-            <div className="grid min-w-max grid-flow-col auto-cols-[132px] gap-2">
+          <footer className="min-h-[196px] overflow-x-auto border-t border-white/10 pt-2">
+            <div className="grid min-w-max grid-flow-col auto-cols-[140px] gap-2">
               {state.hand.map(card => {
                 const cost = getCardCost(card, state.fighters);
                 const disabled = state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
@@ -669,7 +674,7 @@ export default function Battle() {
         </div>
 
         <AnimatePresence>
-          {introActive && <IntroOverlay slide={introSlides[introIndex]} />}
+          {introActive && <IntroOverlay slide={introSlides[introIndex]} onNext={() => setIntroIndex(index => index + 1)} />}
           {state.flowerBurialFlash && <FlowerBurialOverlay image={flowerImage ?? currentBoss.image} berserk={state.boss.berserk} />}
           {playedCard && <PlayedCardAnimation card={playedCard} />}
           {(state.phase === "victory" || state.phase === "defeat") && (
@@ -924,9 +929,10 @@ function startPlayerTurn(state: BattleState): BattleState {
   return drawCards(next, draw);
 }
 
-function IntroOverlay({ slide }: { slide?: IntroSlide }) {
+function IntroOverlay({ slide, onNext }: { slide?: IntroSlide; onNext: () => void }) {
   if (!slide) return null;
   const isStart = slide.kind === "start";
+  const actionText = slide.kind === "boss" ? "确认目标" : isStart ? "进入战斗" : "继续";
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -954,6 +960,12 @@ function IntroOverlay({ slide }: { slide?: IntroSlide }) {
           <div className="border-l-4 border-primary bg-white/5 px-5 py-4 text-xl leading-loose text-white/85">
             {slide.line}
           </div>
+          <Button
+            onClick={onNext}
+            className={`${isStart ? "mx-auto mt-8" : "mt-8 w-48"} rounded-none border border-primary bg-primary px-8 py-6 text-base font-black tracking-widest text-white hover:bg-primary/80`}
+          >
+            {actionText}
+          </Button>
         </div>
       </motion.div>
     </motion.div>
@@ -1098,7 +1110,7 @@ function BattleCardButton({ card, cost, disabled, selected, onClick }: { card: B
       disabled={disabled}
       onClick={onClick}
       whileTap={!disabled ? { scale: 0.96 } : undefined}
-      className={`group grid h-32 grid-rows-[1fr_48px] overflow-hidden border bg-black/60 text-left transition ${
+      className={`group grid h-44 grid-rows-[1fr_72px] overflow-hidden border bg-black/60 text-left transition ${
         disabled
           ? "border-white/10 opacity-45"
           : selected
@@ -1110,11 +1122,14 @@ function BattleCardButton({ card, cost, disabled, selected, onClick }: { card: B
         <img src={icon} alt={card.skill.name} className="h-full w-full object-cover transition group-hover:scale-105" />
         <div className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-yellow-300 text-sm font-black text-black">{cost}</div>
       </div>
-      <div className="grid grid-cols-[34px_1fr] gap-2 border-t border-white/10 bg-[#130b20] p-2">
-        <img src={card.ownerAvatar} alt={card.ownerName} className="h-8 w-8 object-cover" />
-        <div className="min-w-0">
-          <div className="truncate text-xs font-black">{card.skill.name}</div>
-          <div className="truncate text-[10px] text-white/55">{card.ownerName} / {card.skill.type}</div>
+      <div className="grid grid-cols-[48px_1fr] items-center gap-2 border-t border-primary/30 bg-[#10091b] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="flex h-12 w-12 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
+          <img src={card.ownerAvatar} alt={card.ownerName} className="max-h-full max-w-full object-contain" />
+        </div>
+        <div className="min-w-0 leading-tight">
+          <div className="truncate text-sm font-black text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.55)]">{card.skill.name}</div>
+          <div className="mt-1 truncate text-[11px] font-bold text-primary">{card.ownerName}</div>
+          <div className="mt-0.5 truncate text-[10px] text-white/55">{card.skill.type}</div>
         </div>
       </div>
     </motion.button>

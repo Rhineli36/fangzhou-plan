@@ -2,6 +2,9 @@ import type { Character } from "../character-types";
 import testAvatar from "@assets/测试头像-1_1777347912995.png";
 import testPortrait from "@assets/测试立绘-1_1777347909226.png";
 import testSelectionPortrait from "@assets/选择立绘-1_1777347905177.png";
+import shadowWalkIcon from "@assets/night_shadow_walk.png";
+import zidianKillIcon from "@assets/night_zidian_kill.png";
+import voidBladeIcon from "@assets/night_void_blade.png";
 
 const character: Character = {
   id: 'test-01',
@@ -22,7 +25,11 @@ const character: Character = {
     family: `父亲——夜城远，联邦能源研究所副所长，灾变日当夜失踪，仅留下一份未寄出的辞职信。\n母亲——蝶野澄，前研究员，灾变后精神崩溃，被收容至中央疗养所，至今未苏醒。\n妹妹——夜·萤，比她小七岁，灾变时正在中央学园寄宿，下落不明。`,
     pastExperiences: `15 岁时被强制纳入"暗影计划"，编号 NX-0414-S。在长达三年的实验中，她目睹同期的 23 名实验体在改造中死去，仅有自己存活并完成觉醒。\n\n灾变日当晚，研究所地下三层泄露失控，她在意识混乱中杀出包围，第一次以"夜·蝶"的代号出现在外部世界。她背着昏迷的导师走了 47 公里，最终将其安置在一处废弃地铁站后独自离开。`,
     currentSituation: `目前栖身于第十二街区的一栋旧公寓顶层，对外身份是夜班的霓虹灯维修工。她拒绝加入任何派系，只在黑雾浓度超过警戒值的夜晚出动，专门处理被感染的异变者与失控实验体。\n\n她仍在搜寻父亲留下的研究档案，这是她至今没有放弃这个名字的唯一理由。`,
-    epilogue: `"如果有一天我也失去了理智，希望那道紫光，会是某个人最后的怜悯。" —— 摘自其随身记事本第 12 页`
+    epilogue: `那住她终于找到了父亲留下的研究档案，里面藏着关于母亲的真相。她带着妹妹离开了第十一街区，没有再回头。多年后，下城区的孩子们仍在传说，只要在黑雾最浓的夜晚抬头，就能看见一抹紫色的闪电--那是她回来看看故人的方式。
+
+她最初的羁绊从未褪色，只是换了一种方式存在。
+
+"如果有一天我也失去了理智，希望那道紫光，会是某个人最后的怜悯。" —— 摘自其随身记事本第 12 页`
   },
   preferences: {
     likes: ['深夜的雨', '黑咖啡（不加糖）', '老式怀表', '霓虹灯下的倒影'],
@@ -43,7 +50,8 @@ const character: Character = {
       range: '单体',
       cost: 0,
       effect: '暴击率 +20%',
-      upgrade: '暴击伤害提升 50%'
+      upgrade: '暴击伤害提升 50%',
+      icon: shadowWalkIcon
     },
     {
       name: '紫电瞬杀',
@@ -52,7 +60,8 @@ const character: Character = {
       range: '单体',
       cost: 3,
       effect: '造成 250% 攻击力的伤害',
-      upgrade: '若击杀目标，返还 2 点能量'
+      upgrade: '若击杀目标，返还 2 点能量',
+      icon: zidianKillIcon
     },
     {
       name: '虚空刃舞',
@@ -61,7 +70,8 @@ const character: Character = {
       range: '多体',
       cost: 4,
       effect: '对所有敌人造成 120% 伤害',
-      upgrade: '附带流血效果，持续 2 回合'
+      upgrade: '附带流血效果，持续 2 回合',
+      icon: voidBladeIcon
     }
   ],
   creator: {

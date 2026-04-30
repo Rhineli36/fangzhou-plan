@@ -19,4 +19,4 @@ export type {
   Character,
 } from "./character-types";
 
-export { allCharacters as characters } from "./characters/index";
+export { allCharacters as characters, isCharacterBattleReady, playableCharacterIds } from "./characters/index";

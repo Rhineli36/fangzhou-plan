@@ -26,6 +26,7 @@ export default function Home() {
         >
           <div className="space-y-2">
             <h2 className="text-xl tracking-[0.3em] text-primary/80 font-display font-medium">PROJECT ARK · 2025 设计 8 班</h2>
+            <p className="text-sm tracking-[0.18em] text-white/65">指导教师：李路　数字与影像艺术课程作业</p>
             <h1 className="text-6xl md:text-8xl font-bold tracking-wider text-white glow-text font-display">
               方舟计划
             </h1>

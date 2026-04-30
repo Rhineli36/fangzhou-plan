@@ -1,12 +1,26 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
-import { characters, Character } from "@/data/characters";
-import { currentBoss } from "@/data/enemies";
-import { useTeamStore } from "@/store/teamStore";
-import { ArrowLeft, Plus, Check, AlertTriangle, Eye, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { characters, Character, Skill, isCharacterBattleReady } from "@/data/characters";
+import { currentBoss, enemies } from "@/data/enemies";
+import { useTeamStore } from "@/store/teamStore";
+import { AlertTriangle, ArrowLeft, Check, Eye, Lock, Plus, Swords } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import professionInvestigatorIcon from "@assets/profession_investigator.png";
+import professionFighterIcon from "@assets/profession_fighter.png";
+import professionSupportIcon from "@assets/profession_support.png";
+import professionMutantIcon from "@assets/profession_mutant.png";
+import professionRemnantIcon from "@assets/profession_remnant.png";
+
+const BOSS_SLOT_COUNT = 5;
+const professionIcons: Record<Character["profession"], string> = {
+  调查者: professionInvestigatorIcon,
+  战斗者: professionFighterIcon,
+  支援者: professionSupportIcon,
+  异种: professionMutantIcon,
+  遗民: professionRemnantIcon,
+};
 
 export default function TeamSelection() {
   const { selectedCharacterIds, addCharacter, removeCharacter } = useTeamStore();
@@ -15,367 +29,453 @@ export default function TeamSelection() {
   const [overlayChar, setOverlayChar] = useState<Character | null>(null);
   const [bossPeek, setBossPeek] = useState(false);
 
-  const viewedChar = characters.find(c => c.id === viewedCharId)!;
+  const viewedChar = characters.find(c => c.id === viewedCharId) ?? firstUnlocked;
   const isViewedLocked = !!viewedChar.locked;
-  const isViewedSelected = selectedCharacterIds.includes(viewedCharId);
+  const isViewedBattleReady = isCharacterBattleReady(viewedChar);
+  const isViewedSelected = selectedCharacterIds.includes(viewedChar.id);
   const isTeamFull = selectedCharacterIds.length >= 3;
+  const selectedTeam = selectedCharacterIds
+    .map(id => characters.find(character => character.id === id))
+    .filter((character): character is Character => !!character);
+
+  const bossSlots = useMemo(() => {
+    const realBosses = enemies.map((enemy, index) => ({ enemy, unlocked: index === 0 }));
+    const locked = Array.from({ length: Math.max(0, BOSS_SLOT_COUNT - realBosses.length) }, (_, index) => ({
+      enemy: null,
+      unlocked: false,
+      label: `调查档案 ${String(realBosses.length + index + 1).padStart(2, "0")}`,
+    }));
+    return [...realBosses, ...locked];
+  }, []);
 
   const handleSelectClick = () => {
-    if (isViewedLocked) return;
-    if (!isViewedSelected && !isTeamFull) {
-      setOverlayChar(viewedChar);
+    if (isViewedLocked || !isViewedBattleReady) return;
+    if (isViewedSelected) {
+      removeCharacter(viewedChar.id);
+      return;
     }
+    if (!isTeamFull) setOverlayChar(viewedChar);
   };
 
   const confirmSelection = () => {
-    if (overlayChar) {
-      addCharacter(overlayChar.id);
-      setOverlayChar(null);
-    }
+    if (!overlayChar) return;
+    addCharacter(overlayChar.id);
+    setOverlayChar(null);
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0612] text-foreground p-6 flex flex-col relative overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-[#0a0612] p-6 text-foreground">
       <div className="scanlines" />
-
-      {/* Boss Backdrop — 60% 不透明度，覆盖左半屏，作为 BOSS 的临场提醒 */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-1/2 z-0 overflow-hidden"
-      >
-        <img
-          src={currentBoss.image}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover object-center"
-          style={{ opacity: 0.6, filter: 'grayscale(20%)' }}
-        />
-        {/* 右侧渐隐到主背景，避免与中间内容竞争 */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0612]/30 to-[#0a0612]" />
-        {/* 顶部与底部的暗角，融入页面 */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#0a0612]/80 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0a0612]/80 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[46%] overflow-hidden">
+        <img src={currentBoss.image} alt="" className="h-full w-full object-cover opacity-55 grayscale-[20%]" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0612]/35 to-[#0a0612]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612]/75 via-transparent to-[#0a0612]" />
       </div>
 
-      {/* Boss HUD 标签 + 查看档案按钮 */}
-      <button
-        type="button"
-        onClick={() => setBossPeek(true)}
-        className="absolute top-4 left-4 z-30 group flex flex-col items-start gap-1 px-3 py-2 bg-black/40 border border-red-500/40 hover:border-red-400 hover:bg-black/60 transition-all"
-        title="查看目标档案"
-      >
-        <div className="text-[9px] font-mono text-red-400 tracking-[0.3em] flex items-center gap-1.5">
-          <AlertTriangle className="h-2.5 w-2.5" />
-          TARGET LOCKED · {currentBoss.tier}
-        </div>
-        <div className="text-base font-display font-bold text-white tracking-wider">{currentBoss.name}</div>
-        <div className="text-[10px] text-red-200/80 tracking-widest font-mono flex items-center gap-1 group-hover:text-red-100">
-          <Eye className="h-2.5 w-2.5" />
-          点击查看档案
-        </div>
-      </button>
-
-      {/* Header / Back */}
-      <div className="z-10 flex justify-end items-center mb-6">
-        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white group">
+      <header className="relative z-10 mb-5 flex justify-end">
+        <Button asChild variant="ghost" className="text-muted-foreground hover:text-white">
           <Link href="/enemy">
-            <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+            <ArrowLeft className="mr-2 h-4 w-4" />
             返回
           </Link>
         </Button>
-      </div>
+      </header>
 
-      {/* Boss peek modal */}
-      <AnimatePresence>
-        {bossPeek && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => setBossPeek(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              transition={{ duration: 0.25 }}
-              className="relative w-full max-w-3xl bg-[#0a0612] border border-red-500/40 max-h-[85vh] overflow-hidden flex flex-col"
-              onClick={(e) => e.stopPropagation()}
+      <main className="relative z-10 grid min-h-[calc(100vh-92px)] grid-cols-[220px_minmax(500px,660px)_minmax(560px,1fr)] gap-6">
+        <BossColumn slots={bossSlots} onPeek={() => setBossPeek(true)} />
+
+        <section className="flex min-h-0 flex-col">
+          <TeamSlots selectedTeam={selectedTeam} removeCharacter={removeCharacter} />
+
+          <div className="mt-5 flex h-12 items-center justify-center">
+            <Button
+              asChild={isTeamFull}
+              disabled={!isTeamFull}
+              className="h-12 w-64 rounded-none border border-primary bg-primary text-lg font-black tracking-widest text-white glow-box hover:bg-primary/80 disabled:opacity-45"
             >
-              <div className="absolute inset-0 opacity-20 bg-cover bg-center" style={{ backgroundImage: `url(${currentBoss.image})` }} />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#0a0612]/95 via-[#0a0612]/85 to-[#0a0612]/60" />
-              <div className="relative px-8 py-5 border-b border-red-500/20 flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] text-red-400/70 tracking-[0.3em] font-mono mb-1 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    THREAT BRIEFING · {currentBoss.codename}
-                  </div>
-                  <div className="text-red-300 text-xs tracking-widest font-mono">{currentBoss.title}</div>
-                  <h2 className="text-3xl font-display font-bold text-white tracking-wider mt-1">{currentBoss.name}</h2>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setBossPeek(false)} className="text-muted-foreground hover:text-white">
-                  关闭
-                </Button>
-              </div>
-              <div className="relative flex-1 overflow-y-auto px-8 py-6 font-mono">
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-5 text-[11px] border border-red-500/20 p-3 bg-red-950/10">
-                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">威胁</span><div className="text-white">{currentBoss.threatLevel}</div></div>
-                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">分类</span><div className="text-white">{currentBoss.classification}</div></div>
-                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">出没</span><div className="text-white">{currentBoss.habitat}</div></div>
-                  <div><span className="text-muted-foreground/70 text-[9px] uppercase tracking-wider">生命</span><div className="text-white">{currentBoss.hp}</div></div>
-                </div>
-                <div className="mb-5">
-                  <div className="text-[10px] text-red-300 tracking-widest mb-2">攻略要点</div>
-                  <ul className="space-y-1.5">
-                    {currentBoss.strategyTips.map((tip, i) => (
-                      <li key={i} className="text-[11px] text-foreground/85 leading-relaxed flex gap-2">
-                        <span className="text-red-400/70 text-[10px] mt-0.5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="text-center">
-                  <Button asChild variant="outline" size="sm" className="rounded-none border-red-500/40 text-red-200 hover:bg-red-500/10 text-xs tracking-widest">
-                    <Link href="/enemy" onClick={() => setBossPeek(false)}>查看完整档案</Link>
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Team Slots */}
-      <div className="z-10 flex flex-col items-center justify-center mb-8">
-        <div className="flex gap-4">
-          {[0, 1, 2].map((index) => {
-            const charId = selectedCharacterIds[index];
-            const char = characters.find(c => c.id === charId);
-            return (
-              <div key={index} className="flex flex-col items-center space-y-2">
-                <div className="w-24 h-24 border border-border bg-card flex items-center justify-center relative overflow-hidden group">
-                  {char ? (
-                    <>
-                      {char.avatar ? (
-                        <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                          {char.name[0]}
-                        </div>
-                      )}
-                      <div className="absolute bottom-0 w-full bg-black/80 text-center text-xs py-1 font-medium tracking-wider">
-                        {char.name}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex flex-col items-center text-muted-foreground opacity-50">
-                      <Plus className="h-6 w-6 mb-1" />
-                      <span className="text-xs">空位</span>
-                    </div>
-                  )}
-                </div>
-                {char && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-6 text-xs bg-transparent border-border hover:bg-destructive/20 hover:text-destructive hover:border-destructive transition-colors"
-                    onClick={() => removeCharacter(char.id)}
-                  >
-                    更换
-                  </Button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Start Battle Button - only shows when team is full */}
-        <AnimatePresence>
-          {isTeamFull && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="mt-6"
-            >
-              <Button asChild className="h-12 px-10 bg-primary hover:bg-primary/80 text-white font-bold tracking-widest text-lg glow-box rounded-none border border-primary">
-                <Link href="/battle">开始你的战斗</Link>
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="z-10 flex-1 flex gap-8 max-w-6xl mx-auto w-full">
-        {/* Left: Avatar Grid (24 槽位 = 6 列 × 4 行) */}
-        <div className="w-1/2 border-r border-border/50 pr-6">
-          <div className="grid grid-cols-6 gap-2">
-            {characters.map((char) => {
-              const isSelected = selectedCharacterIds.includes(char.id);
-              const isViewed = char.id === viewedCharId;
-              const isLocked = !!char.locked;
-
-              if (isLocked) {
-                return (
-                  <div
-                    key={char.id}
-                    className="relative aspect-square border border-border/30 bg-black/40 flex items-center justify-center cursor-not-allowed"
-                    title="档案待录入"
-                  >
-                    <Lock className="w-4 h-4 text-muted-foreground/40" />
-                    <div className="absolute bottom-0.5 inset-x-0 text-center text-[8px] font-mono text-muted-foreground/40 tracking-widest">
-                      待录入
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={char.id}
-                  onClick={() => setViewedCharId(char.id)}
-                  className={`
-                    relative aspect-square cursor-pointer border transition-all duration-300
-                    ${isViewed ? 'border-primary glow-box scale-105 z-10' : 'border-border/50 hover:border-primary/50'}
-                    ${isSelected ? 'opacity-50' : 'opacity-100'}
-                  `}
-                >
-                  {char.avatar ? (
-                    <img src={char.avatar} alt={char.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-secondary flex items-center justify-center text-lg font-bold text-muted-foreground">
-                      {char.name[0]}
-                    </div>
-                  )}
-                  {isSelected && (
-                    <div className="absolute top-1 right-1 bg-primary rounded-full p-0.5">
-                      <Check className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+              {isTeamFull ? <Link href="/battle">开始你的战斗</Link> : <span>选择 3 名角色</span>}
+            </Button>
           </div>
-        </div>
 
-        {/* Right: Character Info & Portrait */}
-        <div className="w-1/2 flex flex-col justify-end relative h-[500px]">
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={viewedChar.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 flex justify-end items-end"
-            >
-              {viewedChar.portrait ? (
-                <img 
-                  src={viewedChar.portrait} 
-                  alt={viewedChar.name} 
-                  className="h-full object-contain object-right-bottom drop-shadow-2xl"
-                  style={{ filter: "drop-shadow(0 0 20px rgba(168, 85, 247, 0.2))" }}
+          <div className="mt-5 min-h-[520px] border border-border/35 bg-black/30 p-3 backdrop-blur-sm">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-mono font-bold tracking-[0.3em] text-primary/80">OPERATOR ROSTER</div>
+                <div className="text-sm text-white/60">固定角色选择区域</div>
+              </div>
+              <div className="text-xs text-white/45">{selectedCharacterIds.length}/3</div>
+            </div>
+            <div className="grid grid-cols-6 gap-2">
+              {characters.map(character => (
+                <CharacterTile
+                  key={character.id}
+                  character={character}
+                  viewed={character.id === viewedChar.id}
+                  selected={selectedCharacterIds.includes(character.id)}
+                  battleReady={isCharacterBattleReady(character)}
+                  onClick={() => !character.locked && setViewedCharId(character.id)}
                 />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="grid min-h-0 grid-cols-[minmax(260px,420px)_minmax(280px,360px)] gap-5">
+          <CharacterPreview
+            character={viewedChar}
+            selected={isViewedSelected}
+            teamFull={isTeamFull}
+            battleReady={isViewedBattleReady}
+            onSelect={handleSelectClick}
+          />
+          <SkillPreview character={viewedChar} />
+        </section>
+      </main>
+
+      <BossDossier open={bossPeek} onClose={() => setBossPeek(false)} />
+      <SelectionOverlay character={overlayChar} onConfirm={confirmSelection} onClose={() => setOverlayChar(null)} />
+    </div>
+  );
+}
+
+function BossColumn({ slots, onPeek }: { slots: Array<{ enemy: typeof currentBoss | null; unlocked: boolean; label?: string }>; onPeek: () => void }) {
+  return (
+    <aside className="flex flex-col gap-4">
+      <div className="border border-red-500/60 bg-black/45 p-3">
+        <div className="mb-1 flex items-center gap-1.5 text-[9px] font-mono font-bold tracking-[0.3em] text-red-400">
+          <AlertTriangle className="h-3 w-3" />
+          INVESTIGATION FILES
+        </div>
+        <div className="text-sm text-red-100/80">按顺序击杀解锁</div>
+      </div>
+
+      {slots.map((slot, index) => {
+        if (!slot.enemy || !slot.unlocked) {
+          return (
+            <div key={`locked-${index}`} className="flex h-24 items-center justify-center border border-red-500/35 bg-black/55 text-red-200/45">
+              <div className="text-center">
+                <Lock className="mx-auto mb-1 h-5 w-5" />
+                <div className="font-mono text-xs tracking-widest">{slot.label ?? `调查档案 ${String(index + 1).padStart(2, "0")}`}</div>
+                <div className="text-[10px]">未解锁</div>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={slot.enemy.id}
+            type="button"
+            onClick={onPeek}
+            className="group relative h-24 overflow-hidden border-2 border-red-500/80 bg-black text-left shadow-[0_0_22px_rgba(239,68,68,0.18)]"
+          >
+            <img src={slot.enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45 transition group-hover:scale-105 group-hover:opacity-60" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+            <div className="relative p-3">
+              <div className="font-mono text-[9px] tracking-[0.25em] text-red-300">TARGET {String(index + 1).padStart(2, "0")}</div>
+              <div className="mt-1 text-lg font-black text-white">{slot.enemy.name}</div>
+              <div className="mt-1 flex items-center gap-1 text-[10px] text-red-100/70">
+                <Eye className="h-3 w-3" />
+                查看档案
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </aside>
+  );
+}
+
+function TeamSlots({ selectedTeam, removeCharacter }: { selectedTeam: Character[]; removeCharacter: (id: string) => void }) {
+  return (
+    <div className="flex justify-center gap-4">
+      {[0, 1, 2].map(index => {
+        const character = selectedTeam[index];
+        return (
+          <div key={index} className="w-24">
+            <div className="relative flex h-24 items-center justify-center overflow-hidden border border-border bg-card">
+              {character ? (
+                <>
+                  {character.avatar ? (
+                    <div className="flex h-full w-full items-center justify-center bg-white/90">
+                      <img src={character.avatar} alt={character.name} className="max-h-full max-w-full object-contain" />
+                    </div>
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-primary/20 text-2xl font-bold text-primary">{character.name[0]}</div>
+                  )}
+                  <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-xs font-bold tracking-wider">{character.name}</div>
+                </>
               ) : (
-                <div className="h-full w-2/3 bg-gradient-to-t from-primary/20 to-transparent flex items-end justify-center pb-20">
-                  <span className="text-4xl font-display font-bold text-primary/30 tracking-widest">{viewedChar.profession}</span>
+                <div className="flex flex-col items-center text-muted-foreground/50">
+                  <Plus className="mb-1 h-6 w-6" />
+                  <span className="text-xs">空位</span>
                 </div>
               )}
-              
-              <div className="absolute bottom-0 left-0 bg-gradient-to-r from-[#0a0612] via-[#0a0612]/80 to-transparent p-6 w-full max-w-sm">
-                <div className="mb-2 text-primary font-medium tracking-widest text-sm">{viewedChar.title}</div>
-                <h2 className="text-5xl font-bold font-display mb-4 tracking-wider">{viewedChar.name}</h2>
-                <div className="flex gap-2 mb-6">
-                  <Badge variant="outline" className="border-primary/50 text-primary">{viewedChar.profession}</Badge>
-                  <Badge variant="secondary" className="bg-secondary/80">{viewedChar.positioning}</Badge>
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button 
-                    className="flex-1 rounded-none border border-primary bg-primary hover:bg-primary/80 glow-box text-white"
-                    disabled={isViewedSelected || isTeamFull}
-                    onClick={handleSelectClick}
-                  >
-                    {isViewedSelected ? '已在队伍中' : isTeamFull ? '队伍已满' : '选择'}
-                  </Button>
-                  <Button asChild variant="outline" className="flex-1 rounded-none border-border bg-[#0a0612]/50 hover:bg-secondary text-foreground backdrop-blur-sm">
-                    <Link href={`/character/${viewedChar.id}`}>详细信息</Link>
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
+            </div>
+            <div className="mt-2 h-7">
+              {character && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-full rounded-none border-border bg-black/25 text-xs hover:border-destructive hover:bg-destructive/20 hover:text-destructive"
+                  onClick={() => removeCharacter(character.id)}
+                >
+                  更换
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CharacterTile({ character, viewed, selected, battleReady, onClick }: { character: Character; viewed: boolean; selected: boolean; battleReady: boolean; onClick: () => void }) {
+  if (character.locked) {
+    return (
+      <div className="relative aspect-square border border-border/25 bg-black/45">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Lock className="h-4 w-4 text-muted-foreground/35" />
         </div>
+        <div className="absolute inset-x-0 bottom-1 text-center text-[8px] font-mono tracking-widest text-muted-foreground/40">待录入</div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative aspect-square overflow-hidden border transition ${
+        viewed
+          ? "z-10 scale-105 border-primary shadow-[0_0_24px_rgba(168,85,247,0.35)]"
+          : "border-border/45 hover:border-primary/60"
+      } ${selected ? "opacity-55" : ""}`}
+    >
+      {character.avatar ? (
+        <div className="flex h-full w-full items-center justify-center bg-white/90">
+          <img src={character.avatar} alt={character.name} className="max-h-full max-w-full object-contain" />
+        </div>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-secondary text-lg font-bold text-muted-foreground">{character.name[0]}</div>
+      )}
+      {selected && (
+        <div className="absolute right-1 top-1 rounded-full bg-primary p-0.5">
+          <Check className="h-3 w-3 text-white" />
+        </div>
+      )}
+      {!battleReady && (
+        <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-[9px] font-bold tracking-widest text-yellow-100">
+          待实装
+        </div>
+      )}
+    </button>
+  );
+}
+
+function CharacterPreview({ character, selected, teamFull, battleReady, onSelect }: { character: Character; selected: boolean; teamFull: boolean; battleReady: boolean; onSelect: () => void }) {
+  const professionIcon = professionIcons[character.profession];
+
+  return (
+    <div className="flex min-h-0 flex-col">
+      <div className="relative min-h-[520px] flex-1 overflow-hidden border border-border/30 bg-black/20">
+        {character.portrait ? (
+          <img
+            src={character.portrait}
+            alt={character.name}
+            className="absolute inset-0 h-full w-full object-contain object-center"
+            style={{ filter: "drop-shadow(0 0 24px rgba(168,85,247,0.25))" }}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-5xl font-black text-primary/20">{character.name}</div>
+        )}
       </div>
 
-      {/* Selection Cinematic Overlay */}
-      <AnimatePresence>
-        {overlayChar && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      <div className="relative mt-3 min-h-[232px] overflow-hidden border border-border/45 bg-black/55 p-4">
+        <div className="pointer-events-none absolute right-4 top-4 flex h-28 w-28 items-center justify-center overflow-hidden border border-primary/25 bg-[#efe6ff] shadow-[0_0_28px_rgba(168,85,247,0.18)]">
+          <img src={professionIcon} alt={character.profession} className="h-full w-full object-contain" />
+          <div className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[10px] font-black tracking-widest text-white">
+            {character.profession}
+          </div>
+        </div>
+        <div className="pr-32">
+          <div className="text-sm font-bold tracking-widest text-primary">{character.title}</div>
+          <h2 className="mt-1 text-4xl font-black tracking-wider text-white">{character.name}</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Badge variant="outline" className="rounded-none border-primary/50 text-primary">{character.profession}</Badge>
+            <Badge variant="secondary" className="rounded-none bg-secondary/80">{character.positioning}</Badge>
+            {!battleReady && <Badge variant="outline" className="rounded-none border-yellow-300/50 text-yellow-100">待实装</Badge>}
+          </div>
+        </div>
+        <div className="absolute inset-x-4 bottom-4 grid grid-cols-2 gap-3">
+          <Button
+            className="h-12 rounded-none border border-primary bg-primary font-black tracking-widest text-white hover:bg-primary/80"
+            disabled={character.locked || !battleReady || (!selected && teamFull)}
+            onClick={onSelect}
           >
-            <div className="w-full max-w-5xl h-full max-h-[800px] relative flex items-center">
-              {/* Cinematic lines */}
-              <div className="absolute inset-x-0 h-32 bg-primary/10 top-1/4 -skew-y-3 blur-2xl" />
-              
-              {/* Portrait sliding in */}
-              <motion.div 
-                initial={{ x: "50%", opacity: 0 }}
-                animate={{ x: "0%", opacity: 1 }}
-                exit={{ x: "50%", opacity: 0 }}
-                transition={{ type: "spring", damping: 20, stiffness: 100 }}
-                className="absolute right-0 h-[120%] -bottom-20 z-10"
-              >
-                {overlayChar.selectionPortrait ? (
-                  <img 
-                    src={overlayChar.selectionPortrait} 
-                    alt={overlayChar.name} 
-                    className="h-full object-cover object-left" 
-                    style={{ filter: "drop-shadow(0 0 30px rgba(168, 85, 247, 0.5))" }}
-                  />
-                ) : (
-                  <div className="h-full w-[600px] bg-gradient-to-l from-primary/30 to-transparent" />
-                )}
-              </motion.div>
-              
-              {/* Dialog box sliding in */}
-              <motion.div 
-                initial={{ x: "-20%", opacity: 0 }}
-                animate={{ x: "0%", opacity: 1 }}
-                exit={{ x: "-20%", opacity: 0 }}
-                transition={{ type: "spring", damping: 20, stiffness: 100, delay: 0.1 }}
-                className="relative z-20 max-w-2xl bg-gradient-to-r from-background via-background/90 to-background/40 p-12 border-l-4 border-primary"
-              >
-                <div className="text-xl text-primary mb-2 font-display">{overlayChar.name}</div>
-                <div className="text-3xl font-light italic leading-relaxed text-white/90 tracking-wide">
-                  "{overlayChar.selectionLine}"
+            {!battleReady ? "待实装" : selected ? "已在队伍中" : teamFull ? "队伍已满" : "选择"}
+          </Button>
+          <Button asChild variant="outline" className="h-12 rounded-none border-border bg-black/40 font-black tracking-widest text-foreground hover:bg-secondary">
+            <Link href={`/character/${character.id}`}>详细信息</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkillPreview({ character }: { character: Character }) {
+  const skills = character.skills.slice(0, 4);
+  return (
+    <aside className="min-h-0 border border-yellow-300/60 bg-black/35 p-4">
+      <div className="mb-3 flex items-center gap-2 text-yellow-100">
+        <Swords className="h-4 w-4" />
+        <div className="font-mono text-xs font-bold tracking-[0.28em]">SKILL DETAILS</div>
+      </div>
+      <div className="space-y-3">
+        {skills.length === 0 && <div className="text-sm text-white/45">暂无技能资料</div>}
+        {skills.map(skill => <SkillCard key={`${character.id}-${skill.name}`} skill={skill} />)}
+      </div>
+    </aside>
+  );
+}
+
+function SkillCard({ skill }: { skill: Skill }) {
+  return (
+    <div className="border border-white/10 bg-white/[0.04] p-3">
+      <div className="flex gap-3">
+        <div className="h-12 w-12 shrink-0 overflow-hidden border border-white/15 bg-black/40">
+          {skill.icon ? <img src={skill.icon} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-primary/20" />}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-black text-white">{skill.name}</span>
+            <Badge variant="outline" className="rounded-none border-yellow-300/40 text-[10px] text-yellow-100">{skill.type}</Badge>
+            {skill.cost > 0 && <span className="font-mono text-xs text-yellow-200">能量 {skill.cost}</span>}
+          </div>
+          <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-white/70">{skill.effect || skill.description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BossDossier({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6 backdrop-blur-sm"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ scale: 0.95, y: 10 }}
+            animate={{ scale: 1, y: 0 }}
+            exit={{ scale: 0.95, y: 10 }}
+            className="relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden border border-red-500/40 bg-[#0a0612]"
+            onClick={event => event.stopPropagation()}
+          >
+            <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url(${currentBoss.image})` }} />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#0a0612]/95 via-[#0a0612]/85 to-[#0a0612]/60" />
+            <div className="relative flex items-center justify-between border-b border-red-500/20 px-8 py-5">
+              <div>
+                <div className="mb-1 flex items-center gap-1 text-[10px] font-mono tracking-[0.3em] text-red-400/70">
+                  <AlertTriangle className="h-3 w-3" />
+                  THREAT BRIEFING · {currentBoss.codename}
                 </div>
-                
-                <div className="mt-12 flex gap-4">
-                  <Button 
-                    className="rounded-none px-8 py-6 text-lg border border-primary bg-primary hover:bg-primary/80 glow-box"
-                    onClick={confirmSelection}
-                  >
-                    确认加入
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    className="rounded-none px-8 py-6 text-lg text-muted-foreground hover:text-white"
-                    onClick={() => setOverlayChar(null)}
-                  >
-                    取消
-                  </Button>
-                </div>
-              </motion.div>
+                <div className="text-xs font-mono tracking-widest text-red-300">{currentBoss.title}</div>
+                <h2 className="mt-1 text-3xl font-bold tracking-wider text-white">{currentBoss.name}</h2>
+              </div>
+              <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-white">关闭</Button>
+            </div>
+            <div className="relative flex-1 overflow-y-auto px-8 py-6 font-mono">
+              <div className="mb-5 grid grid-cols-2 gap-3 border border-red-500/20 bg-red-950/10 p-3 text-[11px]">
+                <Info label="威胁" value={currentBoss.threatLevel} />
+                <Info label="分类" value={currentBoss.classification} />
+                <Info label="出没" value={currentBoss.habitat} />
+                <Info label="生命" value={currentBoss.hp} />
+              </div>
+              <div className="mb-5 text-[10px] tracking-widest text-red-300">攻略要点</div>
+              <ul className="space-y-1.5">
+                {currentBoss.strategyTips.map((tip, index) => (
+                  <li key={tip} className="flex gap-2 text-[11px] leading-relaxed text-foreground/85">
+                    <span className="shrink-0 text-[10px] text-red-400/70">{String(index + 1).padStart(2, "0")}</span>
+                    <span>{tip}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70">{label}</span>
+      <div className="text-white">{value}</div>
     </div>
+  );
+}
+
+function SelectionOverlay({ character, onConfirm, onClose }: { character: Character | null; onConfirm: () => void; onClose: () => void }) {
+  return (
+    <AnimatePresence>
+      {character && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+        >
+          <div className="relative flex h-full max-h-[800px] w-full max-w-5xl items-center">
+            <div className="absolute top-1/4 h-32 w-full -skew-y-3 bg-primary/10 blur-2xl" />
+            <motion.div
+              initial={{ x: "50%", opacity: 0 }}
+              animate={{ x: "0%", opacity: 1 }}
+              exit={{ x: "50%", opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100 }}
+              className="absolute -bottom-20 right-0 z-10 h-[120%]"
+            >
+              {character.selectionPortrait ? (
+                <img
+                  src={character.selectionPortrait}
+                  alt={character.name}
+                  className="h-full object-cover object-left"
+                  style={{ filter: "drop-shadow(0 0 30px rgba(168,85,247,0.5))" }}
+                />
+              ) : (
+                <div className="h-full w-[600px] bg-gradient-to-l from-primary/30 to-transparent" />
+              )}
+            </motion.div>
+            <motion.div
+              initial={{ x: "-20%", opacity: 0 }}
+              animate={{ x: "0%", opacity: 1 }}
+              exit={{ x: "-20%", opacity: 0 }}
+              transition={{ type: "spring", damping: 20, stiffness: 100, delay: 0.1 }}
+              className="relative z-20 max-w-2xl border-l-4 border-primary bg-gradient-to-r from-background via-background/90 to-background/40 p-12"
+            >
+              <div className="mb-2 text-xl text-primary">{character.name}</div>
+              <div className="text-3xl font-light italic leading-relaxed tracking-wide text-white/90">"{character.selectionLine}"</div>
+              <div className="mt-12 flex gap-4">
+                <Button className="rounded-none border border-primary bg-primary px-8 py-6 text-lg glow-box hover:bg-primary/80" onClick={onConfirm}>
+                  确认加入
+                </Button>
+                <Button variant="ghost" className="rounded-none px-8 py-6 text-lg text-muted-foreground hover:text-white" onClick={onClose}>
+                  取消
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

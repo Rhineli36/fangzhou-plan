@@ -267,7 +267,33 @@ for (const c of loadedFromGlob) {
   realCharacters.push(c);
 }
 
-const rosterPriority = ["test-01", "12250804", "12250818"];
+const rosterPriority = [
+  "test-01",
+  "12250801",
+  "12250804",
+  "12250818",
+  "12250803",
+  "12250805",
+  "12250806",
+  "12250807",
+  "12250808",
+  "12250809",
+  "12250810",
+  "12250811",
+  "12250812",
+  "12250813",
+  "12250815",
+  "12250816",
+  "12250817",
+  "12250819",
+  "12250820",
+];
+export const playableCharacterIds = ["test-01", "12250804", "12250818"];
+
+export function isCharacterBattleReady(character: Character): boolean {
+  const studentId = character.creator?.studentId;
+  return playableCharacterIds.includes(character.id) || (!!studentId && playableCharacterIds.includes(studentId));
+}
 
 function getRosterRank(character: Character): number {
   const studentId = character.creator?.studentId;
