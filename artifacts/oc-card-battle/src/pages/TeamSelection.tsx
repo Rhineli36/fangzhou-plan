@@ -12,6 +12,7 @@ import professionFighterIcon from "@assets/profession_fighter.png";
 import professionSupportIcon from "@assets/profession_support.png";
 import professionMutantIcon from "@assets/profession_mutant.png";
 import professionRemnantIcon from "@assets/profession_remnant.png";
+import { getCharacterDisplayName } from "@/lib/characterName";
 
 const BOSS_SLOT_COUNT = 5;
 const professionIcons: Record<Character["profession"], string> = {
@@ -169,8 +170,9 @@ function BossColumn({ slots, onPeek }: { slots: Array<{ enemy: typeof currentBos
             onClick={onPeek}
             className="group relative h-24 overflow-hidden border-2 border-red-500/80 bg-black text-left shadow-[0_0_22px_rgba(239,68,68,0.18)]"
           >
-            <img src={slot.enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-45 transition group-hover:scale-105 group-hover:opacity-60" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
+            <img src={slot.enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 grayscale-[15%] transition duration-500 group-hover:scale-105 group-hover:opacity-42" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/78 to-black/35" />
+            <div className="absolute inset-0 bg-red-950/10 mix-blend-screen" />
             <div className="relative p-3">
               <div className="font-mono text-[9px] tracking-[0.25em] text-red-300">TARGET {String(index + 1).padStart(2, "0")}</div>
               <div className="mt-1 text-lg font-black text-white">{slot.enemy.name}</div>
@@ -191,6 +193,7 @@ function TeamSlots({ selectedTeam, removeCharacter }: { selectedTeam: Character[
     <div className="flex justify-center gap-4">
       {[0, 1, 2].map(index => {
         const character = selectedTeam[index];
+        const displayName = character ? getCharacterDisplayName(character.name) : "";
         return (
           <div key={index} className="w-24">
             <div className="relative flex h-24 items-center justify-center overflow-hidden border border-border bg-card">
@@ -198,12 +201,12 @@ function TeamSlots({ selectedTeam, removeCharacter }: { selectedTeam: Character[
                 <>
                   {character.avatar ? (
                     <div className="flex h-full w-full items-center justify-center bg-white/90">
-                      <img src={character.avatar} alt={character.name} className="max-h-full max-w-full object-contain" />
+                      <img src={character.avatar} alt={displayName} className="max-h-full max-w-full object-contain" />
                     </div>
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center bg-primary/20 text-2xl font-bold text-primary">{character.name[0]}</div>
+                    <div className="flex h-full w-full items-center justify-center bg-primary/20 text-2xl font-bold text-primary">{displayName[0]}</div>
                   )}
-                  <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-xs font-bold tracking-wider">{character.name}</div>
+                  <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-xs font-bold tracking-wider">{displayName}</div>
                 </>
               ) : (
                 <div className="flex flex-col items-center text-muted-foreground/50">
@@ -232,6 +235,7 @@ function TeamSlots({ selectedTeam, removeCharacter }: { selectedTeam: Character[
 }
 
 function CharacterTile({ character, viewed, selected, battleReady, onClick }: { character: Character; viewed: boolean; selected: boolean; battleReady: boolean; onClick: () => void }) {
+  const displayName = getCharacterDisplayName(character.name);
   if (character.locked) {
     return (
       <div className="relative aspect-square border border-border/25 bg-black/45">
@@ -255,10 +259,10 @@ function CharacterTile({ character, viewed, selected, battleReady, onClick }: { 
     >
       {character.avatar ? (
         <div className="flex h-full w-full items-center justify-center bg-white/90">
-          <img src={character.avatar} alt={character.name} className="max-h-full max-w-full object-contain" />
+          <img src={character.avatar} alt={displayName} className="max-h-full max-w-full object-contain" />
         </div>
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-secondary text-lg font-bold text-muted-foreground">{character.name[0]}</div>
+        <div className="flex h-full w-full items-center justify-center bg-secondary text-lg font-bold text-muted-foreground">{displayName[0]}</div>
       )}
       {selected && (
         <div className="absolute right-1 top-1 rounded-full bg-primary p-0.5">
@@ -276,6 +280,7 @@ function CharacterTile({ character, viewed, selected, battleReady, onClick }: { 
 
 function CharacterPreview({ character, selected, teamFull, battleReady, onSelect }: { character: Character; selected: boolean; teamFull: boolean; battleReady: boolean; onSelect: () => void }) {
   const professionIcon = professionIcons[character.profession];
+  const displayName = getCharacterDisplayName(character.name);
 
   return (
     <div className="flex min-h-0 flex-col">
@@ -283,12 +288,12 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
         {character.portrait ? (
           <img
             src={character.portrait}
-            alt={character.name}
+            alt={displayName}
             className="absolute inset-0 h-full w-full object-contain object-center"
             style={{ filter: "drop-shadow(0 0 24px rgba(168,85,247,0.25))" }}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-5xl font-black text-primary/20">{character.name}</div>
+          <div className="flex h-full w-full items-center justify-center text-5xl font-black text-primary/20">{displayName}</div>
         )}
       </div>
 
@@ -301,7 +306,7 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
         </div>
         <div className="pr-32">
           <div className="text-sm font-bold tracking-widest text-primary">{character.title}</div>
-          <h2 className="mt-1 text-4xl font-black tracking-wider text-white">{character.name}</h2>
+          <h2 className="mt-1 text-4xl font-black tracking-wider text-white">{displayName}</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline" className="rounded-none border-primary/50 text-primary">{character.profession}</Badge>
             <Badge variant="secondary" className="rounded-none bg-secondary/80">{character.positioning}</Badge>
@@ -426,6 +431,8 @@ function Info({ label, value }: { label: string; value: string | number }) {
 }
 
 function SelectionOverlay({ character, onConfirm, onClose }: { character: Character | null; onConfirm: () => void; onClose: () => void }) {
+  const displayName = character ? getCharacterDisplayName(character.name) : "";
+
   return (
     <AnimatePresence>
       {character && (
@@ -447,7 +454,7 @@ function SelectionOverlay({ character, onConfirm, onClose }: { character: Charac
               {character.selectionPortrait ? (
                 <img
                   src={character.selectionPortrait}
-                  alt={character.name}
+                  alt={displayName}
                   className="h-full object-cover object-left"
                   style={{ filter: "drop-shadow(0 0 30px rgba(168,85,247,0.5))" }}
                 />
@@ -462,7 +469,7 @@ function SelectionOverlay({ character, onConfirm, onClose }: { character: Charac
               transition={{ type: "spring", damping: 20, stiffness: 100, delay: 0.1 }}
               className="relative z-20 max-w-2xl border-l-4 border-primary bg-gradient-to-r from-background via-background/90 to-background/40 p-12"
             >
-              <div className="mb-2 text-xl text-primary">{character.name}</div>
+              <div className="mb-2 text-xl text-primary">{displayName}</div>
               <div className="text-3xl font-light italic leading-relaxed tracking-wide text-white/90">"{character.selectionLine}"</div>
               <div className="mt-12 flex gap-4">
                 <Button className="rounded-none border border-primary bg-primary px-8 py-6 text-lg glow-box hover:bg-primary/80" onClick={onConfirm}>

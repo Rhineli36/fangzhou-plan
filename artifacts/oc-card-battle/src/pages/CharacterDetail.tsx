@@ -23,6 +23,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import NotFound from "@/pages/not-found";
+import { getCharacterAlias, getCharacterDisplayName } from "@/lib/characterName";
 
 type DetailTab = "profile" | "equipment" | "voice";
 type ProfileView = "dossier" | "archive";
@@ -46,6 +47,8 @@ export default function CharacterDetail() {
   const ext = char.extendedBackground;
   const pref = char.preferences;
   const creator = char.creator;
+  const displayName = getCharacterDisplayName(char.name);
+  const alias = getCharacterAlias(char.name);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f5f2ff] text-[#22183d]">
@@ -102,8 +105,9 @@ export default function CharacterDetail() {
                   <div className="mb-2 font-mono text-xs text-[#31284b]">FILE No.{char.id.toUpperCase()}</div>
                   <div className="mb-2 text-sm font-bold text-[#6d4bd4]">{char.title}</div>
                   <h1 className="text-6xl font-black leading-none text-[#25153e] drop-shadow-[0_8px_22px_rgba(104,82,189,0.18)]">
-                    {char.name}
+                    {displayName}
                   </h1>
+                  {alias && <div className="mt-2 font-mono text-xs font-bold tracking-[0.22em] text-[#7a6d98]">ALIAS / {alias}</div>}
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Badge className="rounded-none border-[#7b4ded] bg-[#7b4ded] px-4 py-1 text-sm text-white">
                       {char.profession}
@@ -163,7 +167,7 @@ export default function CharacterDetail() {
                           <div className="mb-3 border-l-4 border-[#7b4ded] bg-[#f3efff] px-3 py-2 font-serif text-xs leading-relaxed text-[#43365e]">
                             <div className="mb-1 flex items-center gap-1.5 font-sans text-[10px] font-bold text-[#6d4bd4]">
                               <MessageSquareQuote className="h-3.5 w-3.5" />
-                              想对 {char.name} 说的话
+                              想对 {displayName} 说的话
                             </div>
                             {creator.messageToCharacter}
                           </div>
@@ -283,7 +287,7 @@ export default function CharacterDetail() {
                     </section>
                     </>
                     ) : (
-                      <ArchivePanel charName={char.name} ext={ext} onBack={() => setProfileView("dossier")} />
+                        <ArchivePanel charName={displayName} ext={ext} onBack={() => setProfileView("dossier")} />
                     )}
                   </motion.div>
                 )}
@@ -295,7 +299,7 @@ export default function CharacterDetail() {
 
             <section className="relative h-screen overflow-hidden">
               <div className="absolute right-10 top-12 text-right">
-                <div className="text-2xl font-black text-[#6d4bd4]/50">{char.name.toUpperCase()}</div>
+                <div className="text-2xl font-black text-[#6d4bd4]/50">{displayName.toUpperCase()}</div>
                 <div className="mt-1 text-xs font-bold text-[#7a6d98]">{char.title}</div>
               </div>
 
@@ -303,7 +307,7 @@ export default function CharacterDetail() {
                 {char.portrait ? (
                   <img
                     src={char.portrait}
-                    alt={char.name}
+                    alt={displayName}
                     className="relative z-10 max-h-[96vh] max-w-[88%] object-contain drop-shadow-[0_30px_60px_rgba(48,36,95,0.28)]"
                   />
                 ) : (
@@ -328,7 +332,7 @@ export default function CharacterDetail() {
       <TextDialog
         open={storyOpen}
         onOpenChange={setStoryOpen}
-        title={`${char.name} · 背景故事`}
+        title={`${displayName} · 背景故事`}
         subtitle={char.title}
         body={char.backgroundStory}
       />
