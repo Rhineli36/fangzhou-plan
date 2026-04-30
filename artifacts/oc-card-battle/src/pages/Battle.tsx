@@ -41,6 +41,17 @@ interface BattleCard {
   skill: Skill;
 }
 
+interface EnemyTarget {
+  id: string;
+  name: string;
+  title: string;
+  image: string;
+  hp: number;
+  maxHp: number;
+  statuses: Status[];
+  selected: boolean;
+}
+
 interface BossState {
   hp: number;
   maxHp: number;
@@ -310,7 +321,7 @@ function createInitialState(team: Character[]): BattleState {
 }
 
 function needsAllyTarget(card: BattleCard): boolean {
-  return card.skill.name === "雾愈之触" || card.skill.name === "残响视能";
+  return card.skill.name === "雾愈之触" || card.skill.name === "残响视能" || card.skill.name === "时序祷言";
 }
 
 function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Fighter; blocked: boolean; damage: number } {
@@ -324,10 +335,30 @@ function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Figh
   return { fighter: { ...fighter, hp: Math.max(0, fighter.hp - amount) }, blocked: false, damage: amount };
 }
 
+function triggerFlowerBurialIfNeeded(state: BattleState, boss: BossState, logs: string[]): Pick<BattleState, "boss" | "flowerBurialFlash" | "flowerBurialRevealed"> {
+  if (!boss.flowerBurial && boss.hp > 0 && boss.hp < 10) {
+    const nextBoss = {
+      ...boss,
+      flowerBurial: true,
+      berserk: state.turn <= 5,
+    };
+    logs.push(nextBoss.berserk ? "特殊狂暴：5 回合内触发花葬。" : "花葬触发：兽骨花冠进入第二阶段。");
+    return {
+      boss: nextBoss,
+      flowerBurialFlash: true,
+      flowerBurialRevealed: false,
+    };
+  }
+
+  return {
+    boss,
+    flowerBurialFlash: state.flowerBurialFlash,
+    flowerBurialRevealed: state.flowerBurialRevealed,
+  };
+}
+
 function applyBossDamage(state: BattleState, amount: number, logs: string[]): BattleState {
   let boss = { ...state.boss, hp: Math.max(0, state.boss.hp - amount) };
-  let flowerBurialFlash = state.flowerBurialFlash;
-  let flowerBurialRevealed = state.flowerBurialRevealed;
   if (boss.charging && !boss.flowerBurial) {
     const damageTaken = boss.charging.damageTaken + amount;
     if (damageTaken >= 5) {
@@ -337,13 +368,8 @@ function applyBossDamage(state: BattleState, amount: number, logs: string[]): Ba
       boss = { ...boss, charging: { ...boss.charging, damageTaken } };
     }
   }
-  if (!boss.flowerBurial && boss.hp > 0 && boss.hp < 10) {
-    boss.flowerBurial = true;
-    boss.berserk = state.turn <= 5;
-    flowerBurialFlash = true;
-    flowerBurialRevealed = false;
-    logs.push(boss.berserk ? "特殊狂暴：5 回合内触发花葬。" : "花葬触发：兽骨花冠进入第二阶段。");
-  }
+  const { boss: triggeredBoss, flowerBurialFlash, flowerBurialRevealed } = triggerFlowerBurialIfNeeded(state, boss, logs);
+  boss = triggeredBoss;
   return { ...state, boss, flowerBurialFlash, flowerBurialRevealed };
 }
 
@@ -359,11 +385,44 @@ export default function Battle() {
 
   const [state, setState] = useState<BattleState>(() => createInitialState(team));
   const [targetingCard, setTargetingCard] = useState<BattleCard | null>(null);
+  const [enemyTargetingCard, setEnemyTargetingCard] = useState<BattleCard | null>(null);
+  const [hoveredCard, setHoveredCard] = useState<BattleCard | null>(null);
   const [playedCard, setPlayedCard] = useState<BattleCard | null>(null);
   const [discardMode, setDiscardMode] = useState(false);
   const [bossHit, setBossHit] = useState(false);
   const alive = state.fighters.filter(fighter => fighter.hp > 0);
   const flowerImage = state.boss.berserk ? currentBoss.berserkImage : currentBoss.flowerBurialImage ?? currentBoss.image;
+  const enemyTargets: EnemyTarget[] = [
+    {
+      id: currentBoss.id,
+      name: currentBoss.name,
+      title: currentBoss.title,
+      image: state.boss.flowerBurial && state.flowerBurialRevealed ? flowerImage ?? currentBoss.image : currentBoss.image,
+      hp: state.boss.hp,
+      maxHp: state.boss.maxHp,
+      statuses: [
+        ...(state.boss.flowerBurial
+          ? [
+              makeStatus("talent", {
+                name: "花葬",
+                icon: flowerImage ?? currentBoss.image,
+                description: "第二阶段：迷雾摇篮曲全体化，荆棘皇冕无冷却。",
+              }),
+            ]
+          : []),
+        ...(state.boss.charging
+          ? [
+              makeStatus("charge", {
+                duration: state.boss.charging.remaining,
+                description: `荆棘皇冕蓄力中，已承受 ${state.boss.charging.damageTaken}/5 点打断伤害。`,
+              }),
+            ]
+          : []),
+        ...state.boss.statuses,
+      ],
+      selected: true,
+    },
+  ];
   const introSlides = useMemo<IntroSlide[]>(() => {
     const talentSlides = team
       .map<IntroSlide | null>(character => {
@@ -408,6 +467,8 @@ export default function Battle() {
 
   const restart = () => {
     setTargetingCard(null);
+    setEnemyTargetingCard(null);
+    setHoveredCard(null);
     setPlayedCard(null);
     setDiscardMode(false);
     setBossHit(false);
@@ -425,6 +486,8 @@ export default function Battle() {
     setPlayedCard(card);
     window.setTimeout(() => setPlayedCard(null), 620);
     setTargetingCard(null);
+    setEnemyTargetingCard(null);
+    setHoveredCard(null);
 
     setState(prev => {
       let next: BattleState = {
@@ -483,9 +546,11 @@ export default function Battle() {
     if (state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0) return;
     if (needsAllyTarget(card)) {
       setTargetingCard(card);
+      setEnemyTargetingCard(null);
       return;
     }
-    resolveCardPlay(card);
+    setEnemyTargetingCard(card);
+    setTargetingCard(null);
   };
 
   const onFighterClick = (index: number) => {
@@ -493,9 +558,15 @@ export default function Battle() {
     resolveCardPlay(targetingCard, index);
   };
 
+  const onEnemyClick = (_enemyId: string) => {
+    if (!enemyTargetingCard) return;
+    resolveCardPlay(enemyTargetingCard);
+  };
+
   const endTurn = () => {
     if (state.phase !== "player") return;
     setTargetingCard(null);
+    setEnemyTargetingCard(null);
     setDiscardMode(false);
     setState(prev => runEnemyTurn(prev));
   };
@@ -515,7 +586,7 @@ export default function Battle() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#090510]/70 via-[#090510]/82 to-[#090510]" />
 
-        <div className="relative z-10 grid min-h-screen grid-rows-[auto_1fr_auto] gap-3 p-4">
+        <div className="relative z-10 grid min-h-screen grid-rows-[auto_minmax(0,1fr)_auto] gap-2 p-3">
           <header className="flex items-center justify-between">
             <Button asChild variant="ghost" className="text-white/70 hover:text-white">
               <Link href="/team">
@@ -569,33 +640,29 @@ export default function Battle() {
                 <div className="h-3 border border-red-500/40 bg-black/50">
                   <div className="h-full bg-red-500" style={{ width: `${Math.max(0, (state.boss.hp / state.boss.maxHp) * 100)}%` }} />
                 </div>
-                <div className="mt-3 flex gap-2">
-                  {state.boss.flowerBurial && (
-                    <StatusIcon status={makeStatus("talent", { name: "花葬", icon: flowerImage ?? currentBoss.image, description: "第二阶段：迷雾摇篮曲全体化，荆棘皇冕无冷却。" })} />
-                  )}
-                  {state.boss.charging && (
-                    <StatusIcon status={makeStatus("charge", { duration: state.boss.charging.remaining, description: `荆棘皇冕蓄力中，已承受 ${state.boss.charging.damageTaken}/5 点打断伤害。` })} />
-                  )}
-                  {state.boss.statuses.map((status, index) => <StatusIcon key={`${status.id}-${index}`} status={status} />)}
-                </div>
+                <EnemyTargetRow
+                  enemies={enemyTargets}
+                  targetingCard={enemyTargetingCard}
+                  onEnemyClick={onEnemyClick}
+                />
               </div>
 
               <motion.div
                 animate={bossHit ? { x: [0, -10, 10, -6, 6, 0], scale: [1, 1.02, 1] } : { x: 0, scale: 1 }}
                 transition={{ duration: 0.46 }}
-                className="relative flex w-full flex-1 items-center justify-center"
+                className="relative flex w-full min-h-0 flex-1 items-center justify-center"
               >
                 {bossHit && <div className="absolute inset-0 bg-red-500/12 mix-blend-screen" />}
                 <img
                   src={state.boss.flowerBurial && state.flowerBurialRevealed ? flowerImage ?? currentBoss.image : currentBoss.image}
                   alt={currentBoss.name}
-                  className="max-h-[44vh] max-w-[66%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]"
+                  className="max-h-[36vh] max-w-[62%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]"
                 />
               </motion.div>
 
-              <div className="w-full border border-white/10 bg-black/40 p-3">
+              <div className="w-full border border-white/10 bg-black/40 p-2.5">
                 <div className="mb-2 text-xs font-bold tracking-widest text-white/50">战斗记录</div>
-                <div className="space-y-1 text-xs leading-relaxed text-white/75">
+                <div className="max-h-[112px] space-y-1 overflow-hidden text-xs leading-relaxed text-white/75">
                   {state.log.slice(0, 7).map((entry, index) => <LogLine key={index} text={entry} />)}
                 </div>
               </div>
@@ -625,6 +692,15 @@ export default function Battle() {
                   </Button>
                 </div>
               )}
+              {enemyTargetingCard && (
+                <div className="mb-4 border border-red-400/70 bg-red-500/15 p-3 text-sm text-red-50 shadow-[0_0_20px_rgba(248,113,113,0.18)]">
+                  <div className="font-black">选择敌方目标</div>
+                  <div className="mt-1 text-xs text-white/70">正在使用「{enemyTargetingCard.skill.name}」，点击中间敌方头像确认。</div>
+                  <Button onClick={() => setEnemyTargetingCard(null)} variant="outline" className="mt-3 h-8 w-full rounded-none border-red-200/30 bg-transparent text-red-50">
+                    取消攻击目标
+                  </Button>
+                </div>
+              )}
 
               <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
                 <InfoTile label="手牌上限" value={state.maxHand} />
@@ -639,6 +715,7 @@ export default function Battle() {
                 onClick={() => {
                   setDiscardMode(mode => !mode);
                   setTargetingCard(null);
+                  setEnemyTargetingCard(null);
                 }}
                 disabled={state.phase !== "player" || state.hand.length === 0}
                 variant="outline"
@@ -653,8 +730,9 @@ export default function Battle() {
             </section>
           </main>
 
-          <footer className="min-h-[196px] overflow-x-auto border-t border-white/10 pt-2">
-            <div className="grid min-w-max grid-flow-col auto-cols-[140px] gap-2">
+          <footer className="relative min-h-[154px] overflow-x-auto border-t border-white/10 pt-2">
+            {hoveredCard && <SkillHoverPanel card={hoveredCard} cost={getCardCost(hoveredCard, state.fighters)} />}
+            <div className="grid min-w-max grid-flow-col auto-cols-[126px] gap-2">
               {state.hand.map(card => {
                 const cost = getCardCost(card, state.fighters);
                 const disabled = state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
@@ -664,7 +742,8 @@ export default function Battle() {
                     card={card}
                     cost={cost}
                     disabled={disabled}
-                    selected={targetingCard?.uid === card.uid || discardMode}
+                    selected={targetingCard?.uid === card.uid || enemyTargetingCard?.uid === card.uid || discardMode}
+                    onHover={setHoveredCard}
                     onClick={() => onCardClick(card)}
                   />
                 );
@@ -803,6 +882,8 @@ function runEnemyTurn(state: BattleState): BattleState {
     const damage = bossBleed.stacks ?? 1;
     next = { ...next, boss: { ...next.boss, hp: Math.max(0, next.boss.hp - damage), statuses: decrementDurations(next.boss.statuses) } };
     logs.push(`BOSS 因流血失去 ${damage} 点生命。`);
+    const flower = triggerFlowerBurialIfNeeded(next, next.boss, logs);
+    next = { ...next, ...flower };
   }
 
   if (next.boss.flowerBurial && next.boss.hp > 0) {
@@ -1102,15 +1183,130 @@ function StatusIcon({ status }: { status: Status }) {
   );
 }
 
-function BattleCardButton({ card, cost, disabled, selected, onClick }: { card: BattleCard; cost: number; disabled: boolean; selected: boolean; onClick: () => void }) {
+function EnemyTargetRow({
+  enemies,
+  targetingCard,
+  onEnemyClick,
+}: {
+  enemies: EnemyTarget[];
+  targetingCard: BattleCard | null;
+  onEnemyClick: (enemyId: string) => void;
+}) {
+  return (
+    <div className="mt-3">
+      <div className="mb-2 flex items-center justify-between text-[10px] font-mono font-bold tracking-[0.24em] text-red-200/65">
+        <span>ENEMY TARGETS</span>
+        <span>{enemies.length} HOSTILE</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {enemies.map(enemy => {
+          const hpRatio = enemy.maxHp > 0 ? enemy.hp / enemy.maxHp : 0;
+          return (
+            <button
+              key={enemy.id}
+              type="button"
+              disabled={!targetingCard || enemy.hp <= 0}
+              onClick={() => onEnemyClick(enemy.id)}
+              className={`group relative min-h-[88px] overflow-hidden border bg-black/60 p-2 text-left transition ${
+                targetingCard
+                  ? "border-red-300 shadow-[0_0_20px_rgba(248,113,113,0.26)] hover:-translate-y-0.5 hover:bg-red-500/10"
+                  : enemy.selected
+                    ? "border-red-500/45"
+                    : "border-white/10"
+              }`}
+            >
+              <img src={enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20 transition group-hover:opacity-30" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/88 via-black/72 to-black/28" />
+              <div className="relative grid grid-cols-[48px_1fr] gap-2">
+                <div className="h-12 w-12 overflow-hidden border border-red-300/40 bg-black">
+                  <img src={enemy.image} alt={enemy.name} className="h-full w-full object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-black text-white">{enemy.name}</div>
+                  <div className="truncate text-[10px] text-red-100/55">{enemy.title}</div>
+                  <div className="mt-1 h-1.5 border border-red-400/30 bg-black">
+                    <div className="h-full bg-red-500" style={{ width: `${Math.max(0, hpRatio * 100)}%` }} />
+                  </div>
+                  <div className="mt-0.5 font-mono text-[10px] text-red-100/70">HP {enemy.hp}/{enemy.maxHp}</div>
+                </div>
+              </div>
+              <div className="relative mt-2 flex flex-wrap gap-1.5">
+                {enemy.statuses.map((status, index) => <StatusIcon key={`${enemy.id}-${status.id}-${index}`} status={status} />)}
+              </div>
+              {targetingCard && <div className="relative mt-2 text-[10px] font-black tracking-widest text-red-100">点击攻击</div>}
+            </button>
+          );
+        })}
+        {Array.from({ length: Math.max(0, 3 - enemies.length) }, (_, index) => (
+          <div key={`empty-enemy-${index}`} className="flex min-h-[88px] items-center justify-center border border-white/10 bg-black/30 text-[10px] font-mono tracking-widest text-white/25">
+            EMPTY
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SkillHoverPanel({ card, cost }: { card: BattleCard; cost: number }) {
+  return (
+    <motion.div
+      key={card.uid}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      className="pointer-events-none fixed bottom-[176px] left-6 z-40 w-[420px] border border-primary/50 bg-[#0d0715]/95 p-4 shadow-[0_0_36px_rgba(168,85,247,0.28)] backdrop-blur"
+    >
+      <div className="flex gap-3">
+        <div className="h-20 w-20 shrink-0 overflow-hidden border border-primary/35 bg-black">
+          <img src={card.skill.icon || card.ownerAvatar} alt="" className="h-full w-full object-cover" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-black text-white">{card.skill.name}</h3>
+            <Badge className="rounded-none border border-primary/40 bg-primary/15 text-primary">{card.skill.type}</Badge>
+            <Badge className="rounded-none border border-yellow-300/40 bg-yellow-300/10 text-yellow-100">能量 {cost}</Badge>
+          </div>
+          <div className="text-xs font-bold text-white/55">{card.ownerName} / {card.skill.range}</div>
+          <p className="mt-3 text-sm leading-relaxed text-white/78">{card.skill.description || "暂无技能说明。"}</p>
+          {card.skill.effect && (
+            <div className="mt-3 border-l-4 border-primary bg-white/5 px-3 py-2 text-sm leading-relaxed text-cyan-100">
+              {card.skill.effect}
+            </div>
+          )}
+          {card.skill.upgrade && <div className="mt-2 text-xs font-bold text-yellow-100/80">进阶：{card.skill.upgrade}</div>}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function BattleCardButton({
+  card,
+  cost,
+  disabled,
+  selected,
+  onClick,
+  onHover,
+}: {
+  card: BattleCard;
+  cost: number;
+  disabled: boolean;
+  selected: boolean;
+  onClick: () => void;
+  onHover: (card: BattleCard | null) => void;
+}) {
   const icon = card.skill.icon || card.ownerAvatar;
   return (
     <motion.button
       type="button"
       disabled={disabled}
       onClick={onClick}
+      onMouseEnter={() => onHover(card)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(card)}
+      onBlur={() => onHover(null)}
       whileTap={!disabled ? { scale: 0.96 } : undefined}
-      className={`group grid h-44 grid-rows-[1fr_72px] overflow-hidden border bg-black/60 text-left transition ${
+      className={`group grid h-[138px] grid-rows-[minmax(0,1fr)_54px] overflow-hidden border bg-black/60 text-left transition ${
         disabled
           ? "border-white/10 opacity-45"
           : selected
@@ -1122,13 +1318,13 @@ function BattleCardButton({ card, cost, disabled, selected, onClick }: { card: B
         <img src={icon} alt={card.skill.name} className="h-full w-full object-cover transition group-hover:scale-105" />
         <div className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-yellow-300 text-sm font-black text-black">{cost}</div>
       </div>
-      <div className="grid grid-cols-[48px_1fr] items-center gap-2 border-t border-primary/30 bg-[#10091b] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-        <div className="flex h-12 w-12 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
+      <div className="grid grid-cols-[38px_1fr] items-center gap-2 border-t border-primary/30 bg-[#10091b] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="flex h-10 w-10 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
           <img src={card.ownerAvatar} alt={card.ownerName} className="max-h-full max-w-full object-contain" />
         </div>
         <div className="min-w-0 leading-tight">
-          <div className="truncate text-sm font-black text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.55)]">{card.skill.name}</div>
-          <div className="mt-1 truncate text-[11px] font-bold text-primary">{card.ownerName}</div>
+          <div className="truncate text-xs font-black text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.55)]">{card.skill.name}</div>
+          <div className="mt-0.5 truncate text-[10px] font-bold text-primary">{card.ownerName}</div>
           <div className="mt-0.5 truncate text-[10px] text-white/55">{card.skill.type}</div>
         </div>
       </div>
