@@ -1,5 +1,6 @@
 import type { Character, Profession, Skill } from "../character-types";
 import shisiAvatarCutout from "@assets/shisi_avatar_cutout.png";
+import { resolvePublicAsset } from "@/lib/resourcePath";
 
 // ─── Module aggregation (Vite glob) ─────────────────────────────────────────
 const modules = import.meta.glob<{ default: unknown }>("./*.{ts,json}", { eager: true });
@@ -30,8 +31,8 @@ function fromSubmissionJson(raw: Record<string, unknown>): Character | null {
       cost: 0,
       effect: (p.characteristic as string) || "",
       upgrade: "",
-      icon: (p.icon as string) || undefined,
-      castIllustration: (p.castIllustration as string) || undefined,
+      icon: resolvePublicAsset(p.icon as string) || undefined,
+      castIllustration: resolvePublicAsset(p.castIllustration as string) || undefined,
     });
   }
 
@@ -45,8 +46,8 @@ function fromSubmissionJson(raw: Record<string, unknown>): Character | null {
         cost: 0,
         effect: (s.characteristic as string) || "",
         upgrade: "",
-        icon: (s.icon as string) || undefined,
-        castIllustration: (s.castIllustration as string) || undefined,
+        icon: resolvePublicAsset(s.icon as string) || undefined,
+        castIllustration: resolvePublicAsset(s.castIllustration as string) || undefined,
       });
     }
   }
@@ -68,16 +69,16 @@ function fromSubmissionJson(raw: Record<string, unknown>): Character | null {
     extendedBackground: c.extendedBackground as Character["extendedBackground"] ?? undefined,
     preferences: c.preferences as Character["preferences"] ?? undefined,
     selectionLine: (c.selectionLine as string) || "",
-    avatar: imgs.avatar || "",
-    portrait: imgs.portrait || "",
-    selectionPortrait: imgs.selectionPortrait || "",
+    avatar: resolvePublicAsset(imgs.avatar),
+    portrait: resolvePublicAsset(imgs.portrait),
+    selectionPortrait: resolvePublicAsset(imgs.selectionPortrait),
     skills,
     creator: cr
       ? {
           name: (cr.name as string) || "",
           studentId: (cr.studentId as string) || "",
           className: (cr.class as string) || undefined,
-          avatar: (cr.avatar as string) || undefined,
+          avatar: resolvePublicAsset(cr.avatar as string) || undefined,
           messageToCharacter: (cr.messageToCharacter as string) || undefined,
           proposedGameName: (cr.proposedGameName as string) || undefined,
         }
