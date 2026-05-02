@@ -8,6 +8,7 @@ import TeamSelection from "@/pages/TeamSelection";
 import CharacterDetail from "@/pages/CharacterDetail";
 import Battle from "@/pages/Battle";
 import Prologue from "@/pages/Prologue";
+import Epilogue from "@/pages/Epilogue";
 import EnemyDossier from "@/pages/EnemyDossier";
 import CreateOC from "@/pages/CreateOC";
 
@@ -21,6 +22,8 @@ function Router() {
       <Route path="/character/:id" component={CharacterDetail} />
       <Route path="/battle" component={Battle} />
       <Route path="/prologue" component={Prologue} />
+      <Route path="/epilogue/:storyId" component={Epilogue} />
+      <Route path="/epilogue" component={Epilogue} />
       <Route path="/enemy" component={EnemyDossier} />
       <Route path="/create" component={CreateOC} />
       <Route path="/submit" component={CreateOC} />

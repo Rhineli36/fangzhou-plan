@@ -106,7 +106,101 @@ function parseCharacter(raw: unknown): Character | null {
   return null;
 }
 
+function byName(character: Character, name: string): Skill | undefined {
+  return character.skills.find(skill => skill.name === name);
+}
+
+function byType(character: Character, type: Skill["type"]): Skill | undefined {
+  return character.skills.find(skill => skill.type === type);
+}
+
 function applyTeacherBattleOverrides(character: Character): Character {
+  if (character.creator?.studentId === "12250801") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 6,
+      skills: [
+        {
+          name: "满载行囊",
+          type: "天赋",
+          description: "团队最大能量 +2，团队手牌上限 +2。第 3、6 回合开始时，团队本回合能量恢复额外 +1。",
+          range: "多体",
+          cost: 0,
+          effect: "开战提升能量与手牌上限；第 3、6 回合额外获得 1 点能量。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "应急储备",
+          type: "恢复",
+          description: "为指定角色回复 1 点生命，并获得 1 层恢复，驱散虚弱状态。",
+          range: "单体",
+          cost: 1,
+          effect: "治疗 1；获得恢复；移除虚弱。",
+          upgrade: "",
+          icon: byName(character, "应急储备")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "应急储备")?.castIllustration,
+        },
+        {
+          name: "铲尖猛击",
+          type: "攻击",
+          description: "对单体敌人造成 3 点伤害，并将 1 张应急储备放入自己的手牌。",
+          range: "单体",
+          cost: 3,
+          effect: "造成 3 点伤害；生成 1 张应急储备。",
+          upgrade: "",
+          icon: byName(character, "铲尖猛击")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "铲尖猛击")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250803") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "翳目溯时",
+          type: "天赋",
+          description: "溯衍存活时，每回合开始分别判定：50% 取消所有敌人的隐匿；50% 使自身获得隐匿。",
+          range: "多体",
+          cost: 0,
+          effect: "每回合开始处理隐匿与反隐匿判定。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "勿忘",
+          type: "攻击",
+          description: "对敌人造成 2 点伤害，并施加标记，持续 2 回合。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；附加标记。",
+          upgrade: "",
+          icon: byName(character, "勿忘")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "勿忘")?.castIllustration,
+        },
+        {
+          name: "铭记",
+          type: "攻击",
+          description: "对敌人造成 3 点伤害；若目标被标记，额外造成 2 点伤害，并刷新目标全部减益持续时间。",
+          range: "单体",
+          cost: 4,
+          effect: "造成 3 点伤害；标记目标额外 +2，并刷新减益。",
+          upgrade: "",
+          icon: byName(character, "铭记")?.icon || byName(character, "勿忘")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "铭记")?.castIllustration,
+        },
+      ],
+    };
+  }
+
   if (character.creator?.studentId === "12250804") {
     const talent = character.skills.find(skill => skill.type === "天赋");
     const heal = character.skills.find(skill => skill.name === "雾愈之触");
@@ -147,6 +241,383 @@ function applyTeacherBattleOverrides(character: Character): Character {
           upgrade: "击杀目标时返回手牌。",
           icon: cage?.icon,
           castIllustration: cage?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250805") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "时痕感知",
+          type: "天赋",
+          description: "丽·沃恩存活时，所有敌人的隐匿效果无法生效。",
+          range: "多体",
+          cost: 0,
+          effect: "反制敌方隐匿。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "预知残影",
+          type: "防御",
+          description: "只能对自己使用。获得 1 层护盾，并对随机敌人造成 1 次标记。",
+          range: "单体",
+          cost: 1,
+          effect: "自身获得护盾；敌方获得标记。",
+          upgrade: "",
+          icon: byName(character, "预知残影")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "预知残影")?.castIllustration,
+        },
+        {
+          name: "时痕回溯",
+          type: "防御",
+          description: "只能对自己使用，持续 2 回合。若期间死亡，以 3 点生命复活，并反击致命伤来源 3 点伤害；若来源被标记，生成 2 张快速射击。",
+          range: "单体",
+          cost: 3,
+          effect: "自身获得回溯复活状态。",
+          upgrade: "",
+          icon: byName(character, "时痕回溯")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "时痕回溯")?.castIllustration,
+        },
+        {
+          name: "快速射击",
+          type: "攻击",
+          description: "造成 2 点伤害。本回合每次打出快速射击，手牌中剩余快速射击消费 -1。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；本回合后续快速射击费用降低。",
+          upgrade: "",
+          icon: byName(character, "快速射击")?.icon || byName(character, "预知残影")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "快速射击")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250806") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "星之残响",
+          type: "天赋",
+          description: "塞拉斯受到伤害时有 50% 几率获得 1 张命运折射。开战第一回合固定获得 1 张命运折射，不受手牌上限限制。",
+          range: "单体",
+          cost: 0,
+          effect: "受伤有概率生成命运折射；开战额外获得 1 张。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "星辰律动",
+          type: "恢复",
+          description: "回复指定队友 2 点生命；如果手中有命运折射，强制弃置 1 张，并为目标添加 1 层护盾。",
+          range: "单体",
+          cost: 2,
+          effect: "治疗 2；弃命运折射可追加护盾。",
+          upgrade: "",
+          icon: byName(character, "星辰律动")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "星辰律动")?.castIllustration,
+        },
+        {
+          name: "命运折射",
+          type: "攻击",
+          description: "对目标造成 1-3 点伤害，并附加 1 回合失控。失控无法叠加。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 1-3 点伤害；附加失控。",
+          upgrade: "",
+          icon: byName(character, "命运折射")?.icon || byName(character, "星之残响")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "命运折射")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250807") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "过载分析",
+          type: "天赋",
+          description: "每次打出阿德琳·温莎的卡牌，获得 1 层过载分析。达到 3 层时清空，抽 1 张牌并获得 1 点能量。",
+          range: "单体",
+          cost: 0,
+          effect: "打出自身牌累计过载；3 层转化为抽牌与能量。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "记忆重构·档案提取",
+          type: "恢复",
+          description: "为目标清除随机 1 层减益并回复 1 点生命；若目标不存在减益，则扣除 1 点生命并添加 1 层护盾，生命为 1 时不会扣血。",
+          range: "单体",
+          cost: 1,
+          effect: "驱散减益并治疗；无减益时转化为护盾。",
+          upgrade: "",
+          icon: byName(character, "记忆重构·档案提取")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "记忆重构·档案提取")?.castIllustration,
+        },
+        {
+          name: "时序断层·停滞场",
+          type: "攻击",
+          description: "对单体造成 2 点伤害，并有 50% 几率造成打断。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；50% 打断蓄力。",
+          upgrade: "",
+          icon: byName(character, "时序断层·停滞场")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "时序断层·停滞场")?.castIllustration,
+        },
+        {
+          name: "理论具现·熵减治疗",
+          type: "恢复",
+          description: "全体回复 2 点生命，并清除当前全部过载分析，获得对应层数的恢复。",
+          range: "多体",
+          cost: 3,
+          effect: "全体治疗 2；过载层数转为恢复。",
+          upgrade: "",
+          icon: byName(character, "理论具现·熵减治疗")?.icon || character.skills[3]?.icon,
+          castIllustration: byName(character, "理论具现·熵减治疗")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250808") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "失控解放",
+          type: "天赋",
+          description: "纺拥有减益时，她的雾爪必定命中并且伤害 +1。",
+          range: "单体",
+          cost: 0,
+          effect: "有减益时强化雾爪。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "雾爪",
+          type: "攻击",
+          description: "对目标造成 1 点伤害，并赋予 1 层流血。",
+          range: "单体",
+          cost: 1,
+          effect: "造成 1 点伤害；附加流血。",
+          upgrade: "",
+          icon: byName(character, "雾爪")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "雾爪")?.castIllustration,
+        },
+        {
+          name: "净化领域",
+          type: "恢复",
+          description: "为全体队友驱散随机 1 层减益，并赋予 1 层恢复。",
+          range: "多体",
+          cost: 3,
+          effect: "全体驱散 1 个减益，并获得恢复。",
+          upgrade: "",
+          icon: byName(character, "净化领域")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "净化领域")?.castIllustration,
+        },
+        {
+          name: "残影读秒",
+          type: "防御",
+          description: "生成 1 张雾爪到手中，同时赋予自身失控和隐匿。",
+          range: "单体",
+          cost: 2,
+          effect: "生成雾爪；自身获得失控与隐匿。",
+          upgrade: "",
+          icon: byName(character, "残影读秒")?.icon || character.skills[3]?.icon,
+          castIllustration: byName(character, "残影读秒")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250809") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "时序守护",
+          type: "天赋",
+          description: "赛琳·维拉存活时，队友护盾被清除可回复 1 点生命。该效果最多触发 3 次。",
+          range: "多体",
+          cost: 0,
+          effect: "护盾破裂时治疗，最多 3 次。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "时序修复",
+          type: "恢复",
+          description: "下回合摸牌 +1、能量恢复 +1、手牌上限 +1，仅持续 1 回合。时序修复返回手牌。",
+          range: "多体",
+          cost: 2,
+          effect: "获得下回合资源增益；本牌返回手牌。",
+          upgrade: "",
+          icon: byName(character, "Chronos Repair 时序修复")?.icon || byName(character, "时序修复")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "Chronos Repair 时序修复")?.castIllustration,
+        },
+        {
+          name: "安护屏障",
+          type: "防御",
+          description: "为全体队友添加 1 层护盾和 1 层恢复，并随机丢弃 1 张手牌。",
+          range: "多体",
+          cost: 4,
+          effect: "全体获得护盾与恢复；随机弃 1 张手牌。",
+          upgrade: "",
+          icon: byName(character, "Safe Haven Barrier 安护屏障")?.icon || byName(character, "安护屏障")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "Safe Haven Barrier 安护屏障")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250810") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "共鸣",
+          type: "天赋",
+          description: "当敌人的失控效果触发时，队伍获得 1 点能量并抽 1 张牌。",
+          range: "多体",
+          cost: 0,
+          effect: "敌方失控失败时获得资源。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "时空之刃·断界",
+          type: "攻击",
+          description: "造成 1-4 点伤害，并对敌人造成重伤。",
+          range: "单体",
+          cost: 3,
+          effect: "造成 1-4 点伤害；附加重伤。",
+          upgrade: "",
+          icon: byName(character, "时空之刃·断界")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "时空之刃·断界")?.castIllustration,
+        },
+        {
+          name: "时空之刃·扭曲",
+          type: "攻击",
+          description: "造成 1-2 点伤害，并附加失控。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 1-2 点伤害；附加失控。",
+          upgrade: "",
+          icon: byName(character, "时空之刃·扭曲")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "时空之刃·扭曲")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250811") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "记忆检索",
+          type: "天赋",
+          description: "每回合开始获得 1 层记忆检索。达到 4 层时清空，队友所有增益层数 +1；无层数增益刷新持续时间。",
+          range: "多体",
+          cost: 0,
+          effect: "回合开始累计记忆；4 层强化全队增益。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "念念不忘",
+          type: "防御",
+          description: "对自己生成 1 层护盾，并生成 1 层记忆检索。主动弃置时，获得 1 点能量并生成 1 层记忆检索。",
+          range: "单体",
+          cost: 1,
+          effect: "自身护盾；获得记忆检索。",
+          upgrade: "主动弃置时获得能量和记忆。",
+          icon: byName(character, "念念不忘")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "念念不忘")?.castIllustration,
+        },
+        {
+          name: "永恒离别",
+          type: "攻击",
+          description: "对所有敌人造成 2 + 当前记忆检索层数的伤害，并有 50% 几率附加虚弱。",
+          range: "多体",
+          cost: 3,
+          effect: "群体伤害；概率附加虚弱。",
+          upgrade: "",
+          icon: byName(character, "永恒离别")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "永恒离别")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250812") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 6,
+      skills: [
+        {
+          name: "时空之力",
+          type: "天赋",
+          description: "回合结束时，若雷恩拥有增益，下回合抽卡 +1；若拥有减益，下回合能量恢复 +1。",
+          range: "单体",
+          cost: 0,
+          effect: "根据自身增益/减益提供下回合资源。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "废墟行者",
+          type: "恢复",
+          description: "清除目标 2 层减益，并获得 1 层恢复。若目标是雷恩本人，额外获得 1 层攻击提升。",
+          range: "单体",
+          cost: 2,
+          effect: "驱散 2 层减益；获得恢复；自用追加攻击提升。",
+          upgrade: "",
+          icon: byName(character, "废墟行者")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "废墟行者")?.castIllustration,
+        },
+        {
+          name: "绝境应激",
+          type: "攻击",
+          description: "造成 2 点伤害。自身当前每损失 2 点生命，额外造成 1 点伤害。主动弃置时，自身获得恢复和虚弱。",
+          range: "单体",
+          cost: 2,
+          effect: "造成基于损血的伤害。",
+          upgrade: "主动弃置时获得恢复和虚弱。",
+          icon: byName(character, "绝境应激")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "绝境应激")?.castIllustration,
         },
       ],
     };
@@ -243,6 +714,369 @@ function applyTeacherBattleOverrides(character: Character): Character {
     };
   }
 
+  if (character.creator?.studentId === "12250813") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 7,
+      skills: [
+        {
+          name: "朽茧余温",
+          type: "天赋",
+          description: "莉拉首次死亡时，会在下个己方回合以 1 点生命复活；同时驱散全队 1 层异常状态，并为全队赋予 1 层恢复。",
+          range: "多体",
+          cost: 0,
+          effect: "每场战斗限 1 次：死亡后延迟复活，并为全队净化与恢复。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "蛛丝汲生",
+          type: "异能",
+          description: "赋予指定队友蛛丝汲生。目标当前回合所有卡牌消费 -1；目标卡牌造成伤害后，为莉拉和目标同时回复 1 点生命，持续 2 回合。",
+          range: "单体",
+          cost: 4,
+          effect: "指定队友获得蛛丝汲生：费用 -1，造成伤害后双方回复。",
+          upgrade: "",
+          icon: byName(character, "蛛丝汲生")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "蛛丝汲生")?.castIllustration,
+        },
+        {
+          name: "流萤抚墟",
+          type: "恢复",
+          description: "全体队友回复 1 点生命；带有蛛丝汲生的角色额外驱散 1 层异常状态，并获得 1 层恢复。",
+          range: "多体",
+          cost: 2,
+          effect: "全体治疗；强化蛛丝汲生目标。",
+          upgrade: "",
+          icon: byName(character, "流萤抚墟")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "流萤抚墟")?.castIllustration,
+        },
+        {
+          name: "蝶落守彰",
+          type: "攻击",
+          description: "造成 2 点伤害；如果队友中有人带有蛛丝汲生，则对目标赋予重伤。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；有蛛丝汲生时附加重伤。",
+          upgrade: "",
+          icon: byName(character, "蝶落守彰")?.icon || character.skills[3]?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "蝶落守彰")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250815") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 4,
+      skills: [
+        {
+          name: "影痕共鸣",
+          type: "天赋",
+          description: "如果上一己方回合阮烬没有出过牌，下个回合开始前阮烬获得 1 回合技能免疫，免疫新获得的减益。",
+          range: "单体",
+          cost: 0,
+          effect: "空过一回合后获得技能免疫。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "时间锚点",
+          type: "攻击",
+          description: "造成 1 点伤害，并附加标记。",
+          range: "单体",
+          cost: 1,
+          effect: "造成 1 点伤害；附加标记。",
+          upgrade: "",
+          icon: byName(character, "时间锚点")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "时间锚点")?.castIllustration,
+        },
+        {
+          name: "碎片脉冲",
+          type: "攻击",
+          description: "对所有敌人造成 1 点伤害；如果敌人身上有标记，每层标记额外 +1 伤害，并刷新标记持续时间。",
+          range: "多体",
+          cost: 3,
+          effect: "群体伤害；根据标记层数追加伤害并刷新标记。",
+          upgrade: "",
+          icon: byName(character, "碎片脉冲")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "碎片脉冲")?.castIllustration,
+        },
+        {
+          name: "时停回溯",
+          type: "攻击",
+          description: "造成 1-2 点伤害，并尝试打断蓄力。若成功打断蓄力，有 50% 几率赋予昏迷。",
+          range: "单体",
+          cost: 3,
+          effect: "随机伤害；打断蓄力；成功打断后可能昏迷。",
+          upgrade: "",
+          icon: byName(character, "时停回溯")?.icon || character.skills[3]?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "时停回溯")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250816") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "残时回响",
+          type: "天赋",
+          description: "鸢尾每次造成伤害时，33% 几率获得 1 点能量；每次受到伤害时，33% 几率在下个回合额外摸 1 张自己的牌。",
+          range: "单体",
+          cost: 0,
+          effect: "造成伤害可能回能；受到伤害可能准备额外抽牌。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "断空瞬斩",
+          type: "攻击",
+          description: "造成 1-3 点伤害，并清除自身所有减益；如果清除了减益，回复 1 点生命。",
+          range: "单体",
+          cost: 2,
+          effect: "随机伤害；自净化；清除成功时自疗。",
+          upgrade: "",
+          icon: byName(character, "断空瞬斩")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "断空瞬斩")?.castIllustration,
+        },
+        {
+          name: "暗影裂刃",
+          type: "攻击",
+          description: "造成 2 点伤害，并清除目标身上的所有增益；每清除 1 个增益，额外造成 1 点伤害。",
+          range: "单体",
+          cost: 2,
+          effect: "驱散敌方增益并按数量追加伤害。",
+          upgrade: "",
+          icon: byName(character, "暗影裂刃")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "暗影裂刃")?.castIllustration,
+        },
+        {
+          name: "时滞刀域",
+          type: "异能",
+          description: "鸢尾进入自己的领域，摸 2 张自己的牌；不会摸到时滞刀域。本回合所有鸢尾卡牌消费 -1，造成伤害 +1。",
+          range: "单体",
+          cost: 4,
+          effect: "抽 2 张鸢尾牌；本回合鸢尾费用降低并提高伤害。",
+          upgrade: "",
+          icon: byName(character, "时滞刀域")?.icon || character.skills[3]?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "时滞刀域")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250817") {
+    const talent = byType(character, "天赋");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "黑雾亲和",
+          type: "天赋",
+          description: "在隐匿或伏击状态下，艾琳处于技能免疫状态，并且受到的最终伤害 -1。",
+          range: "单体",
+          cost: 0,
+          effect: "隐匿/伏击期间获得减伤与技能免疫。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "雾蚀突袭",
+          type: "攻击",
+          description: "造成 2 点伤害，并为目标附加重伤。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害；附加重伤。",
+          upgrade: "",
+          icon: byName(character, "雾蚀突袭")?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "雾蚀突袭")?.castIllustration,
+        },
+        {
+          name: "异化释放",
+          type: "异能",
+          description: "驱散自身减益，并进入伏击状态。伏击拥有隐匿效果，下一次伤害有 50% 几率翻倍。",
+          range: "单体",
+          cost: 3,
+          effect: "自净化；获得伏击。",
+          upgrade: "",
+          icon: byName(character, "异化释放")?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "异化释放")?.castIllustration,
+        },
+        {
+          name: "雾翼庇护",
+          type: "防御",
+          description: "让指定队友进入隐匿状态，并驱散所有减益。",
+          range: "单体",
+          cost: 2,
+          effect: "指定队友隐匿并完全净化。",
+          upgrade: "",
+          icon: byName(character, "雾翼庇护")?.icon || character.skills[3]?.icon || character.skills[2]?.icon,
+          castIllustration: byName(character, "雾翼庇护")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250820") {
+    const talent = byType(character, "天赋");
+    const shadowStep = byName(character, "残步影");
+    return {
+      ...character,
+      hp: 6,
+      skills: [
+        {
+          name: "黑雾抗性",
+          type: "天赋",
+          description: "受到减益时有 50% 几率抵抗。若失败，下一次抵抗判定提高 25%；判定成功后，下一次抵抗概率重置为 50%。每次抵抗成功，回复 1 点生命并获得 1 点能量。",
+          range: "单体",
+          cost: 0,
+          effect: "抵抗减益；失败会提高下一次判定，成功时自疗并回能。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "残步影",
+          type: "攻击",
+          description: "造成 2 点伤害，对敌人附加失控；有 50% 几率尝试对自己附加失控。如果触发自我失控判定，无论是否被黑雾抗性抵抗，这张残步影都会回到手中。",
+          range: "单体",
+          cost: 2,
+          effect: "造成 2 点伤害并附加失控；可能回手。",
+          upgrade: "",
+          icon: shadowStep?.icon || character.skills[1]?.icon,
+          castIllustration: shadowStep?.castIllustration,
+        },
+        {
+          name: "残响屏障",
+          type: "防御",
+          description: "为指定队友生成 1 层护盾，并为林青梧自己生成 1 层恍惚。如果林青梧抵抗了这次恍惚，则下回合额外摸 1 张牌，最多叠加 3 次。",
+          range: "单体",
+          cost: 2,
+          effect: "指定护盾；自我恍惚判定；抵抗成功时准备额外摸牌。",
+          upgrade: "",
+          icon: byName(character, "残响屏障")?.icon || shadowStep?.icon || character.skills[1]?.icon,
+          castIllustration: byName(character, "残响屏障")?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250819") {
+    const talent = byName(character, "黑雾迷阵") || byType(character, "天赋");
+    const thousandBlades = byName(character, "剥离、千层刃") || byType(character, "天赋");
+    const rewind = byName(character, "层解、回溯");
+    const silence = byName(character, "空心、归寂");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "黑雾迷阵",
+          type: "天赋",
+          description: "鳞造成的减益有 50% 几率额外叠加 1 层。",
+          range: "单体",
+          cost: 0,
+          effect: "减益追加叠层。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "剥离、千层刃",
+          type: "攻击",
+          description: "对目标造成 1-3 点伤害，并附加 1 层流血。如果黑雾迷阵触发，额外叠加 1 层流血，并回复 1 点能量。",
+          range: "单体",
+          cost: 3,
+          effect: "随机伤害；附加流血；迷阵触发时回能。",
+          upgrade: "",
+          icon: thousandBlades?.icon || character.skills[1]?.icon,
+          castIllustration: thousandBlades?.castIllustration,
+        },
+        {
+          name: "层解、回溯",
+          type: "恢复",
+          description: "全体队友驱散 1 层减益并回复 2 点生命，随后鳞失去 2 点生命；此技能不会使鳞死亡，至少保留 1 点生命。",
+          range: "多体",
+          cost: 2,
+          effect: "全体净化与治疗；自身支付生命。",
+          upgrade: "",
+          icon: rewind?.icon || character.skills[2]?.icon || thousandBlades?.icon,
+          castIllustration: rewind?.castIllustration,
+        },
+        {
+          name: "空心、归寂",
+          type: "攻击",
+          description: "对目标造成 1-3 点伤害，并附加禁止治疗 2 回合。禁止治疗会阻止目标获得治疗，重复叠加会延长持续回合。",
+          range: "单体",
+          cost: 3,
+          effect: "随机伤害；附加禁止治疗。",
+          upgrade: "",
+          icon: silence?.icon || character.skills[3]?.icon || rewind?.icon,
+          castIllustration: silence?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250821") {
+    const talent = byType(character, "天赋");
+    const redBlade = byName(character, "赤刃·裂空");
+    const rewind = byName(character, "烬影·回溯");
+    return {
+      ...character,
+      hp: 6,
+      name: "瑞文",
+      skills: [
+        {
+          name: "雾影赤瞳",
+          type: "天赋",
+          description: "瑞文对敌人造成伤害时，有 50% 几率附加 1 层标记。如果敌人已经带有标记，则瑞文回复 1 点生命。",
+          range: "单体",
+          cost: 0,
+          effect: "造成伤害时尝试标记；攻击已有标记目标时自疗。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "赤刃·裂空",
+          type: "攻击",
+          description: "对目标造成 1-3 点伤害。如果造成的伤害超过目标总生命值的 30%，则立刻杀死非 BOSS 对手。",
+          range: "单体",
+          cost: 3,
+          effect: "随机伤害；高伤害时斩杀非 BOSS 目标。",
+          upgrade: "",
+          icon: redBlade?.icon || character.skills[1]?.icon,
+          castIllustration: redBlade?.castIllustration,
+        },
+        {
+          name: "烬影·回溯",
+          type: "防御",
+          description: "清除自身 1 项减益，获得 1 层攻击提升。如果本回合瑞文使用过赤刃·裂空，则生成 1 张赤刃·裂空放入手牌。",
+          range: "单体",
+          cost: 2,
+          effect: "自我净化；获得攻击提升；本回合使用过赤刃时补牌。",
+          upgrade: "",
+          icon: rewind?.icon || character.skills[2]?.icon || redBlade?.icon,
+          castIllustration: rewind?.castIllustration,
+        },
+      ],
+    };
+  }
+
   return character;
 }
 
@@ -288,8 +1122,30 @@ const rosterPriority = [
   "12250817",
   "12250819",
   "12250820",
+  "12250821",
 ];
-export const playableCharacterIds = ["test-01", "12250804", "12250818"];
+export const playableCharacterIds = [
+  "test-01",
+  "12250801",
+  "12250803",
+  "12250804",
+  "12250805",
+  "12250806",
+  "12250807",
+  "12250808",
+  "12250809",
+  "12250810",
+  "12250811",
+  "12250812",
+  "12250813",
+  "12250815",
+  "12250816",
+  "12250817",
+  "12250818",
+  "12250819",
+  "12250820",
+  "12250821",
+];
 
 export function isCharacterBattleReady(character: Character): boolean {
   const studentId = character.creator?.studentId;
@@ -311,40 +1167,4 @@ realCharacters.sort((a, b) => {
   return a.id.localeCompare(b.id);
 });
 
-// ─── Pad to 24 slots with locked placeholders ────────────────────────────────
-
-const TOTAL_SLOTS = 24;
-
-function makePlaceholders(startIndex: number, count: number): Character[] {
-  return Array.from({ length: count }, (_, i) => {
-    const num = String(startIndex + i + 1).padStart(2, "0");
-    return {
-      id: `placeholder-${num}`,
-      name: "???",
-      title: "档案待录入",
-      profession: "调查者" as Profession,
-      positioning: "—",
-      hp: 0,
-      gender: "—",
-      age: "—",
-      birthday: "—",
-      zodiac: "—",
-      bloodType: "—",
-      linkedCharacters: [],
-      backgroundStory: "档案尚未录入。等待 2025 届设计 8 班的同学提交。",
-      selectionLine: "...",
-      avatar: "",
-      portrait: "",
-      selectionPortrait: "",
-      skills: [],
-      locked: true,
-    } satisfies Character;
-  });
-}
-
-const placeholderCount = Math.max(0, TOTAL_SLOTS - realCharacters.length);
-
-export const allCharacters: Character[] = [
-  ...realCharacters,
-  ...makePlaceholders(realCharacters.length, placeholderCount),
-];
+export const allCharacters: Character[] = [...realCharacters];

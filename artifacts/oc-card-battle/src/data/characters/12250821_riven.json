@@ -1,0 +1,83 @@
+{
+  "submittedAt": "2026-04-30T12:13:00.270Z",
+  "creator": {
+    "name": "贾文瑶",
+    "studentId": "12250821",
+    "class": "2025届设计8班",
+    "avatar": "resources/characters/12250821/creator_avatar.jpg",
+    "messageToCharacter": "创造即存在，关上电脑，故事依旧发生，自由生活，而我只负责记录。",
+    "proposedGameName": "终末档案"
+  },
+  "character": {
+    "id": "oc-molg2sq6",
+    "name": "Riven",
+    "title": "天堂鸟——Strelitzia",
+    "profession": "支援者",
+    "positioning": "中近距战斗手",
+    "hp": 6,
+    "gender": "男",
+    "age": "21",
+    "birthday": "11.11",
+    "zodiac": "天蝎座",
+    "bloodType": "A型",
+    "linkedCharacters": [],
+    "selectionLine": "想去往生极乐？天堂鸟送你一程^^",
+    "backgroundStory": "Riven，代号“天堂鸟”，一个听起来充满希望的名字，既是传说中的极乐之鸟，也是一种为他而生的战地之花——在焦土上绽放，向死而生。他红发如火，性格张扬，爱恨分明，言词犀利如刀。作为支援者，他游走于中近距离的战场，以强力的火力掩护队友。他的支援方式充满了浓重的个人风格：精准、高效，在掩护队友的同时，总不忘对敌人施以无情的火力压制与言语嘲讽。那玩世不恭的笑容下，藏着父母惨死、长兄失踪的血色过往，以及一颗用愤怒灼烧世界的决心。张扬是他的保护色，反抗是他的座右铭，他本身就是一则行走的战场传说。",
+    "extendedBackground": {
+      "origin": "         Riven出身于“锈沙城”的凡赛尔家族，一个掌控着稀有矿脉与地下水净化厂、说一不二的沙地贵族。他的童年，是在沙暴与黄金交织的迷梦中度过的。高耸的防风塔、恒温的穹顶花园、父亲书房里古老的星图，构成了他对世界的最初印象。作为备受宠爱的小儿子，性格温柔高贵，自信张扬。\n         然而，12岁那年的仲夏晚宴，一群突然狂暴的异能者冲破了庄园的防御矩阵。仿佛一场突如其来的沙暴，将一切美好瞬间摧毁，父母为了保护兄弟俩，在他眼前被暴走的异能撕裂。从那一刻起，金色的童年结束了，那个张扬的红发少年，内心烧起了一团永不熄灭的黑色火焰。\n",
+      "family": "\n         Riven的哥哥，洛根，比Riven年长6岁，是凡赛尔家族沉稳克制的继承人。与Riven的张扬不同，洛根像一座沉默的冰山，将所有情感都深埋在冷静的表象之下。父母遇难后，18岁的洛根成了Riven唯一的依靠和监护人。他冷静地处理后事，安排Riven撤离。\n        悲剧发生的第三天后，洛根在深夜离开了临时住所。只给Riven留下一张简短的字条：“别找我，活下去。我会结束这一切。”从那以后，洛根就像沙海中的一滴水，彻底蒸发。Riven不知道的是，洛根潜伏3年却是仇人莱昂的一个局，他被植入了精神控制器，从此成为一具听命于仇人的空壳。哥哥的离去，成了Riven心上最深的伤口。寻找哥哥的下落，成为他之后行动的重要推动力。\n",
+      "pastExperiences": "         无父无母、长兄无踪的Riven，在最混乱的贫民窟里学会了真正的丛林法则。他挖掘并精炼了自己曾被家族视为“不务正业”的战斗天赋。身体的伤痕和心灵的剧痛，将他淬炼成一个完美的战士。\n         经过数年追查，他发现当年那群狂暴的异能者并非意外失控，而是一场精心策划的袭击。幕后黑手是一个名为“莱昂”的佣兵头目，他受雇于凡赛尔家族的商业对手，目的就是让凡赛尔家破人亡。Riven曾在一次赏金任务中与他擦肩而过，命运的丝线终于将猎人与猎物重新连接。\n",
+      "currentSituation": "        如今，Riven加入了“黑砾储藏馆”，一个游走于灰色地带的中立组织。这个地方对外宣称是储藏和交易古代科技遗物、稀有矿产与情报的情报屋，但实际上是各路赏金猎人、情报贩子和流浪战士的中转站与避风港。在这里，他是出了名的“问题青年”，完成任务效率极高，但过程总是惊天动地。他通常等队友不敌对手时突然出现，在受伤的队友注视下独自击败对手，最后默默离开交代队友善后，给敌友双方都造成了一定的嘲讽。但所有人都知道，在他子心里，装着的不是赏金，而是两个名字——一个是仇人“莱昂”，一个是消失的哥哥“洛根”。每一次任务，他都在暗中比对情报，搜寻着与他们有关的蛛丝马迹。\n",
+      "epilogue": "Riven找到了哥哥，但哥哥早已被莱昂精神控制致使兄弟相残，最终这位曾经的兄长用尽最后的意志力，强行将自己的枪口对准了自己，扣下了扳机。绝望之下Riven努力杀死了莱昂。他没有回到黑砾储藏馆。他只是简单包扎了伤口，将哥哥的铭牌挂在自己的脖子上，和父母的遗物放在一起。然后，他将标志性的红发拢入斗篷的兜帽下，转身，独自一人踏入了无边的沙海。\n\n前方，再也没有需要寻找的人。背后，所有的恩怨都已随风而逝。天堂鸟独自飞向了沙漠深处，只留下一个张扬而孤独的背影，和一个关于兄弟、复仇与牺牲的完整传说。",
+      "epilogueIllustration": "resources/characters/12250821/character_extendedBackground_epilogueIllustration.jpg"
+    },
+    "preferences": {
+      "likes": [
+        "灰烬燃烧殆尽的味道",
+        "红色的任何物品",
+        "晒太阳",
+        "做任务喜欢独来独往偶尔帅气地独自前去支援 这样很酷",
+        "薄荷"
+      ],
+      "dislikes": [
+        "有人碰他头发",
+        "腐败的高层",
+        "笨的人"
+      ],
+      "favoriteColor": "红色",
+      "habits": "恋痛 有偷偷扒开伤口的习惯 ；偶尔哼点爵士乐；情圣 ，和任何人都可以如沐春风般地聊天",
+      "motto": "我反抗，故我们存在。"
+    },
+    "passiveSkill": {
+      "name": "雾影赤瞳",
+      "type": "天赋",
+      "effectDescription": "辅助类全队增益，能为队伍标记隐藏威胁\n",
+      "characteristic": "标记场上有隐身/分身等效果的角色，每回合可使用一次。",
+      "icon": "resources/characters/12250821/character_passiveSkill_icon.jpg",
+      "castIllustration": "resources/characters/12250821/character_passiveSkill_castIllustration.jpg"
+    },
+    "activeSkills": [
+      {
+        "name": "赤刃·裂空",
+        "type": "攻击",
+        "effectDescription": "高伤+减益，适合对抗高速或重甲目标",
+        "characteristic": "对方血量减少15% ，目标行动速度降低30%，持续2回合\n\n",
+        "icon": "resources/characters/12250821/character_activeSkills_0_icon.jpg",
+        "castIllustration": "resources/characters/12250821/character_activeSkills_0_castIllustration.jpg"
+      },
+      {
+        "name": "烬影·回溯",
+        "type": "防御",
+        "effectDescription": "以自身10%的生命值为代价，回溯自身3秒内的状态，清除所有负面效果（比如黑雾侵蚀、时空诅咒），并将周围10米内的时空流暂时稳定，为队友创造安全的输出窗口。",
+        "characteristic": "自保+团队辅助，每场战斗最多使用2次",
+        "icon": "resources/characters/12250821/character_activeSkills_1_icon.jpg",
+        "castIllustration": "resources/characters/12250821/character_activeSkills_1_castIllustration.jpg"
+      }
+    ]
+  },
+  "images": {
+    "avatar": "resources/characters/12250821/images_avatar.jpg",
+    "portrait": "resources/characters/12250821/images_portrait.jpg",
+    "selectionPortrait": "resources/characters/12250821/images_selectionPortrait.jpg"
+  }
+}

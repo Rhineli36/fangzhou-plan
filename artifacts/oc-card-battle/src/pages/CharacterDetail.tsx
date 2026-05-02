@@ -24,6 +24,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import NotFound from "@/pages/not-found";
 import { getCharacterAlias, getCharacterDisplayName } from "@/lib/characterName";
+import { SkillDiscardHint, SkillStatusHints, StatusGlossaryButton, StatusTermText } from "@/components/StatusGlossary";
+import { getTalentStatusIconOverrides } from "@/data/statusCatalog";
 
 type DetailTab = "profile" | "equipment" | "voice";
 type ProfileView = "dossier" | "archive";
@@ -49,6 +51,7 @@ export default function CharacterDetail() {
   const creator = char.creator;
   const displayName = getCharacterDisplayName(char.name);
   const alias = getCharacterAlias(char.name);
+  const statusIconOverrides = getTalentStatusIconOverrides(char.skills.find(skill => skill.type === "天赋")?.icon || char.avatar);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#f5f2ff] text-[#22183d]">
@@ -262,12 +265,22 @@ export default function CharacterDetail() {
                     )}
 
                     <section className="border border-[#d8d1ef] bg-white/78 p-5 shadow-[0_18px_42px_rgba(64,47,118,0.08)]">
-                      <h2 className="mb-4 text-sm font-black text-[#6d4bd4]">战斗技能 / SKILLS</h2>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h2 className="text-sm font-black text-[#6d4bd4]">战斗技能 / SKILLS</h2>
+                        <StatusGlossaryButton className="h-8 border-[#7b4ded]/35 bg-white/70 px-3 text-xs text-[#6d4bd4] hover:bg-[#ece7ff]" />
+                      </div>
                       <div className="space-y-3">
                         {char.skills.map((skill, index) => (
                           <div key={`${skill.name}-${index}`} className="grid grid-cols-[64px_1fr] gap-4 border border-[#e1daf4] bg-[#fbfaff] p-3">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#8c61f0] bg-[#7b4ded] text-xs font-bold text-white shadow-[0_0_24px_rgba(123,77,237,0.22)]">
-                              {skill.type}
+                            <div className="relative h-16 w-16 overflow-hidden border-2 border-[#8c61f0] bg-[#211c32] shadow-[0_0_24px_rgba(123,77,237,0.22)]">
+                              {skill.icon ? (
+                                <img src={skill.icon} alt={skill.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-[#7b4ded] text-xs font-bold text-white">{skill.type}</div>
+                              )}
+                              <div className="absolute inset-x-0 bottom-0 bg-[#211c32]/82 py-0.5 text-center text-[9px] font-bold text-white">
+                                {skill.type}
+                              </div>
                             </div>
                             <div className="min-w-0">
                               <div className="mb-1 flex items-center justify-between gap-3">
@@ -277,9 +290,19 @@ export default function CharacterDetail() {
                                 </div>
                                 {skill.cost > 0 && <span className="text-xs font-bold text-[#7b4ded]">消耗 {skill.cost} EN</span>}
                               </div>
-                              <p className="text-sm leading-relaxed text-[#5d526f]">{skill.description}</p>
-                              <div className="mt-2 border-l-4 border-[#7b4ded] bg-[#f0ecff] px-3 py-1 text-sm text-[#342b4b]">{skill.effect}</div>
-                              {skill.upgrade && <div className="mt-1 text-xs font-bold text-[#2d93b2]">进阶：{skill.upgrade}</div>}
+                              <p className="text-sm leading-relaxed text-[#5d526f]">
+                                <StatusTermText text={skill.description} iconOverrides={statusIconOverrides} />
+                              </p>
+                              <div className="mt-2 border-l-4 border-[#7b4ded] bg-[#f0ecff] px-3 py-1 text-sm text-[#342b4b]">
+                                <StatusTermText text={skill.effect} iconOverrides={statusIconOverrides} />
+                              </div>
+                              {skill.upgrade && (
+                                <div className="mt-1 text-xs font-bold text-[#2d93b2]">
+                                  进阶：<StatusTermText text={skill.upgrade} iconOverrides={statusIconOverrides} />
+                                </div>
+                              )}
+                              <SkillStatusHints texts={[skill.description, skill.effect, skill.upgrade]} className="mt-2" iconOverrides={statusIconOverrides} />
+                              <SkillDiscardHint skill={skill} className="mt-2 border-yellow-400 bg-yellow-200/45 text-[#5a3b00]" />
                             </div>
                           </div>
                         ))}

@@ -1,11 +1,12 @@
 import { Link } from "wouter";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, AlertTriangle, Skull, Eye, ShieldAlert } from "lucide-react";
-import { currentBoss } from "@/data/enemies";
+import { currentBoss, enemies, setCurrentBoss } from "@/data/enemies";
 
 const threatColor: Record<string, string> = {
   低: 'border-zinc-500/40 text-zinc-300',
@@ -15,7 +16,18 @@ const threatColor: Record<string, string> = {
 };
 
 export default function EnemyDossier() {
-  const boss = currentBoss;
+  const [boss, setBoss] = useState(currentBoss);
+  const bossIndex = Math.max(0, enemies.findIndex(enemy => enemy.id === boss.id));
+  const previousBoss = () => {
+    const next = enemies[(bossIndex - 1 + enemies.length) % enemies.length];
+    setCurrentBoss(next.id);
+    setBoss(next);
+  };
+  const nextBoss = () => {
+    const next = enemies[(bossIndex + 1) % enemies.length];
+    setCurrentBoss(next.id);
+    setBoss(next);
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0612] text-foreground relative overflow-hidden">
@@ -117,6 +129,19 @@ export default function EnemyDossier() {
             className="relative flex flex-col"
           >
             <ScrollArea className="flex-1 px-10 py-8 font-mono">
+              <div className="mb-5 flex items-center justify-between gap-3">
+                <Button variant="outline" size="sm" onClick={previousBoss} className="rounded-none border-red-500/35 bg-black/40 text-red-100 hover:bg-red-500/15">
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+                  上一份
+                </Button>
+                <div className="text-center text-[10px] font-mono tracking-[0.24em] text-red-300/70">
+                  INVESTIGATION FILE {String(bossIndex + 1).padStart(2, "0")} / {String(enemies.length).padStart(2, "0")}
+                </div>
+                <Button variant="outline" size="sm" onClick={nextBoss} className="rounded-none border-red-500/35 bg-black/40 text-red-100 hover:bg-red-500/15">
+                  下一份
+                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                </Button>
+              </div>
               {/* Compact header — name is on the image side */}
               <div className="mb-5">
                 <div className="text-[10px] text-red-400/70 tracking-[0.3em] mb-3">FILE No.{boss.id.toUpperCase()} · ENEMY DOSSIER</div>

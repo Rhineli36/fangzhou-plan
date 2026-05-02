@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { characters, Character, Skill, isCharacterBattleReady } from "@/data/characters";
-import { currentBoss, enemies } from "@/data/enemies";
+import { currentBoss, enemies, setCurrentBoss, type Enemy } from "@/data/enemies";
 import { useTeamStore } from "@/store/teamStore";
 import { AlertTriangle, ArrowLeft, Check, Eye, Lock, Plus, Swords } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -13,6 +13,8 @@ import professionSupportIcon from "@assets/profession_support.png";
 import professionMutantIcon from "@assets/profession_mutant.png";
 import professionRemnantIcon from "@assets/profession_remnant.png";
 import { getCharacterDisplayName } from "@/lib/characterName";
+import { SkillDiscardHint, SkillStatusHints, StatusGlossaryButton, StatusTermText } from "@/components/StatusGlossary";
+import { getTalentStatusIconOverrides } from "@/data/statusCatalog";
 
 const BOSS_SLOT_COUNT = 5;
 const professionIcons: Record<Character["profession"], string> = {
@@ -29,6 +31,8 @@ export default function TeamSelection() {
   const [viewedCharId, setViewedCharId] = useState<string>(firstUnlocked.id);
   const [overlayChar, setOverlayChar] = useState<Character | null>(null);
   const [bossPeek, setBossPeek] = useState(false);
+  const [peekBoss, setPeekBoss] = useState<Enemy>(currentBoss);
+  const [selectedBoss, setSelectedBoss] = useState<Enemy>(currentBoss);
 
   const viewedChar = characters.find(c => c.id === viewedCharId) ?? firstUnlocked;
   const isViewedLocked = !!viewedChar.locked;
@@ -40,7 +44,7 @@ export default function TeamSelection() {
     .filter((character): character is Character => !!character);
 
   const bossSlots = useMemo(() => {
-    const realBosses = enemies.map((enemy, index) => ({ enemy, unlocked: index === 0 }));
+    const realBosses = enemies.map(enemy => ({ enemy, unlocked: true }));
     const locked = Array.from({ length: Math.max(0, BOSS_SLOT_COUNT - realBosses.length) }, (_, index) => ({
       enemy: null,
       unlocked: false,
@@ -68,7 +72,7 @@ export default function TeamSelection() {
     <div className="relative min-h-screen overflow-hidden bg-[#0a0612] p-6 text-foreground">
       <div className="scanlines" />
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-[46%] overflow-hidden">
-        <img src={currentBoss.image} alt="" className="h-full w-full object-cover opacity-55 grayscale-[20%]" />
+        <img src={selectedBoss.image} alt="" className="h-full w-full object-cover opacity-55 grayscale-[20%]" />
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#0a0612]/35 to-[#0a0612]" />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0612]/75 via-transparent to-[#0a0612]" />
       </div>
@@ -83,7 +87,16 @@ export default function TeamSelection() {
       </header>
 
       <main className="relative z-10 grid min-h-[calc(100vh-92px)] grid-cols-[220px_minmax(500px,660px)_minmax(560px,1fr)] gap-6">
-        <BossColumn slots={bossSlots} onPeek={() => setBossPeek(true)} />
+        <BossColumn
+          slots={bossSlots}
+          onPeek={enemy => {
+            setCurrentBoss(enemy.id);
+            setSelectedBoss(enemy);
+            setPeekBoss(enemy);
+            setBossPeek(true);
+          }}
+          selectedBossId={selectedBoss.id}
+        />
 
         <section className="flex min-h-0 flex-col">
           <TeamSlots selectedTeam={selectedTeam} removeCharacter={removeCharacter} />
@@ -104,7 +117,10 @@ export default function TeamSelection() {
                 <div className="text-[10px] font-mono font-bold tracking-[0.3em] text-primary/80">OPERATOR ROSTER</div>
                 <div className="text-sm text-white/60">固定角色选择区域</div>
               </div>
-              <div className="text-xs text-white/45">{selectedCharacterIds.length}/3</div>
+              <div className="flex items-center gap-2">
+                <StatusGlossaryButton className="h-8 px-3 text-xs" />
+                <div className="text-xs text-white/45">{selectedCharacterIds.length}/3</div>
+              </div>
             </div>
             <div className="grid grid-cols-6 gap-2">
               {characters.map(character => (
@@ -133,13 +149,13 @@ export default function TeamSelection() {
         </section>
       </main>
 
-      <BossDossier open={bossPeek} onClose={() => setBossPeek(false)} />
+      <BossDossier boss={peekBoss} open={bossPeek} onClose={() => setBossPeek(false)} />
       <SelectionOverlay character={overlayChar} onConfirm={confirmSelection} onClose={() => setOverlayChar(null)} />
     </div>
   );
 }
 
-function BossColumn({ slots, onPeek }: { slots: Array<{ enemy: typeof currentBoss | null; unlocked: boolean; label?: string }>; onPeek: () => void }) {
+function BossColumn({ slots, onPeek, selectedBossId }: { slots: Array<{ enemy: Enemy | null; unlocked: boolean; label?: string }>; onPeek: (enemy: Enemy) => void; selectedBossId: string }) {
   return (
     <aside className="flex flex-col gap-4">
       <div className="border border-red-500/60 bg-black/45 p-3">
@@ -162,20 +178,26 @@ function BossColumn({ slots, onPeek }: { slots: Array<{ enemy: typeof currentBos
             </div>
           );
         }
+        const enemy = slot.enemy;
+        const selected = enemy.id === selectedBossId;
 
         return (
           <button
-            key={slot.enemy.id}
+            key={enemy.id}
             type="button"
-            onClick={onPeek}
-            className="group relative h-24 overflow-hidden border-2 border-red-500/80 bg-black text-left shadow-[0_0_22px_rgba(239,68,68,0.18)]"
+            onClick={() => onPeek(enemy)}
+            className={`group relative h-24 overflow-hidden border-2 bg-black text-left shadow-[0_0_22px_rgba(239,68,68,0.18)] ${selected ? "border-cyan-300 ring-2 ring-cyan-300/60" : "border-red-500/80"}`}
           >
-            <img src={slot.enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 grayscale-[15%] transition duration-500 group-hover:scale-105 group-hover:opacity-42" />
+            <img src={enemy.image} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 grayscale-[15%] transition duration-500 group-hover:scale-105 group-hover:opacity-42" />
             <div className="absolute inset-0 bg-gradient-to-r from-black via-black/78 to-black/35" />
             <div className="absolute inset-0 bg-red-950/10 mix-blend-screen" />
-            <div className="relative p-3">
+            <div className="absolute right-2 top-2 h-16 w-16 overflow-hidden border border-cyan-200/60 bg-black/60">
+              <img src={enemy.flowerBurialImage ?? enemy.battleBackground ?? enemy.image} alt="" className="h-full w-full object-cover" />
+            </div>
+            {selected && <div className="absolute right-2 bottom-2 bg-cyan-300 px-2 py-0.5 text-[9px] font-black tracking-widest text-black">SELECTED</div>}
+            <div className="relative p-3 pr-20">
               <div className="font-mono text-[9px] tracking-[0.25em] text-red-300">TARGET {String(index + 1).padStart(2, "0")}</div>
-              <div className="mt-1 text-lg font-black text-white">{slot.enemy.name}</div>
+              <div className="mt-1 text-lg font-black text-white">{enemy.name}</div>
               <div className="mt-1 flex items-center gap-1 text-[10px] text-red-100/70">
                 <Eye className="h-3 w-3" />
                 查看档案
@@ -312,6 +334,10 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
             <Badge variant="secondary" className="rounded-none bg-secondary/80">{character.positioning}</Badge>
             {!battleReady && <Badge variant="outline" className="rounded-none border-yellow-300/50 text-yellow-100">待实装</Badge>}
           </div>
+          <div className="mt-3 inline-flex items-center gap-2 border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-sm font-black text-emerald-100">
+            <span className="font-mono text-[10px] tracking-[0.24em] text-emerald-100/65">LIFE</span>
+            <span>HP {character.hp}/{character.hp}</span>
+          </div>
         </div>
         <div className="absolute inset-x-4 bottom-4 grid grid-cols-2 gap-3">
           <Button
@@ -333,40 +359,59 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
 function SkillPreview({ character }: { character: Character }) {
   const skills = character.skills.slice(0, 4);
   return (
-    <aside className="min-h-0 border border-yellow-300/60 bg-black/35 p-4">
-      <div className="mb-3 flex items-center gap-2 text-yellow-100">
-        <Swords className="h-4 w-4" />
-        <div className="font-mono text-xs font-bold tracking-[0.28em]">SKILL DETAILS</div>
+    <aside className="min-h-0 overflow-hidden border border-yellow-300/60 bg-black/35 p-4">
+      <div className="mb-3 flex items-center justify-between gap-3 text-yellow-100">
+        <div className="flex items-center gap-2">
+          <Swords className="h-4 w-4" />
+          <div className="font-mono text-xs font-bold tracking-[0.28em]">SKILL DETAILS</div>
+        </div>
+        <StatusGlossaryButton className="h-8 border-yellow-300/35 bg-yellow-300/10 px-3 text-xs text-yellow-100 hover:bg-yellow-300/15" />
       </div>
-      <div className="space-y-3">
+      <div className="max-h-[calc(100vh-150px)] space-y-3 overflow-y-auto pr-1">
         {skills.length === 0 && <div className="text-sm text-white/45">暂无技能资料</div>}
-        {skills.map(skill => <SkillCard key={`${character.id}-${skill.name}`} skill={skill} />)}
+        {skills.map(skill => <SkillCard key={`${character.id}-${skill.name}`} character={character} skill={skill} />)}
       </div>
     </aside>
   );
 }
 
-function SkillCard({ skill }: { skill: Skill }) {
+function SkillCard({ character, skill }: { character: Character; skill: Skill }) {
+  const iconOverrides = getTalentStatusIconOverrides(character.skills.find(item => item.type === "天赋")?.icon || character.avatar);
   return (
     <div className="border border-white/10 bg-white/[0.04] p-3">
       <div className="flex gap-3">
-        <div className="h-12 w-12 shrink-0 overflow-hidden border border-white/15 bg-black/40">
+        <div className="h-16 w-16 shrink-0 overflow-hidden border border-white/15 bg-black/40">
           {skill.icon ? <img src={skill.icon} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full bg-primary/20" />}
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-black text-white">{skill.name}</span>
             <Badge variant="outline" className="rounded-none border-yellow-300/40 text-[10px] text-yellow-100">{skill.type}</Badge>
+            <Badge variant="outline" className="rounded-none border-primary/35 text-[10px] text-primary">{skill.range}</Badge>
             {skill.cost > 0 && <span className="font-mono text-xs text-yellow-200">能量 {skill.cost}</span>}
           </div>
-          <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-white/70">{skill.effect || skill.description}</p>
+          <p className="mt-2 text-xs leading-relaxed text-white/70">
+            <StatusTermText text={skill.description || "暂无技能说明。"} iconOverrides={iconOverrides} />
+          </p>
+          {skill.effect && (
+            <div className="mt-2 border-l-4 border-primary bg-white/5 px-3 py-2 text-xs leading-relaxed text-cyan-100">
+              <StatusTermText text={skill.effect} iconOverrides={iconOverrides} />
+            </div>
+          )}
+          {skill.upgrade && (
+            <div className="mt-2 text-xs font-bold leading-relaxed text-yellow-100/80">
+              进阶：<StatusTermText text={skill.upgrade} iconOverrides={iconOverrides} />
+            </div>
+          )}
+          <SkillStatusHints texts={[skill.description, skill.effect, skill.upgrade]} className="mt-2" iconOverrides={iconOverrides} />
+          <SkillDiscardHint skill={skill} className="mt-2" />
         </div>
       </div>
     </div>
   );
 }
 
-function BossDossier({ open, onClose }: { open: boolean; onClose: () => void }) {
+function BossDossier({ boss, open, onClose }: { boss: Enemy; open: boolean; onClose: () => void }) {
   return (
     <AnimatePresence>
       {open && (
@@ -384,35 +429,61 @@ function BossDossier({ open, onClose }: { open: boolean; onClose: () => void }) 
             className="relative flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden border border-red-500/40 bg-[#0a0612]"
             onClick={event => event.stopPropagation()}
           >
-            <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url(${currentBoss.image})` }} />
+            <div className="absolute inset-0 bg-cover bg-center opacity-20" style={{ backgroundImage: `url(${boss.image})` }} />
             <div className="absolute inset-0 bg-gradient-to-r from-[#0a0612]/95 via-[#0a0612]/85 to-[#0a0612]/60" />
             <div className="relative flex items-center justify-between border-b border-red-500/20 px-8 py-5">
               <div>
                 <div className="mb-1 flex items-center gap-1 text-[10px] font-mono tracking-[0.3em] text-red-400/70">
                   <AlertTriangle className="h-3 w-3" />
-                  THREAT BRIEFING · {currentBoss.codename}
+                  THREAT BRIEFING · {boss.codename}
                 </div>
-                <div className="text-xs font-mono tracking-widest text-red-300">{currentBoss.title}</div>
-                <h2 className="mt-1 text-3xl font-bold tracking-wider text-white">{currentBoss.name}</h2>
+                <div className="text-xs font-mono tracking-widest text-red-300">{boss.title}</div>
+                <h2 className="mt-1 text-3xl font-bold tracking-wider text-white">{boss.name}</h2>
               </div>
               <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground hover:text-white">关闭</Button>
             </div>
             <div className="relative flex-1 overflow-y-auto px-8 py-6 font-mono">
               <div className="mb-5 grid grid-cols-2 gap-3 border border-red-500/20 bg-red-950/10 p-3 text-[11px]">
-                <Info label="威胁" value={currentBoss.threatLevel} />
-                <Info label="分类" value={currentBoss.classification} />
-                <Info label="出没" value={currentBoss.habitat} />
-                <Info label="生命" value={currentBoss.hp} />
+                <Info label="威胁" value={boss.threatLevel} />
+                <Info label="分类" value={boss.classification} />
+                <Info label="出没" value={boss.habitat} />
+                <Info label="生命" value={boss.hp} />
+              </div>
+              <div className="mb-5 text-[11px] leading-relaxed text-foreground/85">{boss.description}</div>
+              <div className="mb-5 text-[10px] tracking-widest text-red-300">技能情报</div>
+              <div className="mb-5 space-y-2">
+                {boss.abilities.map(ability => (
+                  <div key={ability.name} className="border border-red-500/20 bg-black/35 p-3">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="text-sm font-black text-white">{ability.name}</span>
+                      <Badge variant="outline" className="rounded-none border-red-300/40 text-[10px] text-red-100">威胁 {ability.threat}</Badge>
+                    </div>
+                    <div className="text-[11px] leading-relaxed text-foreground/75">{ability.description}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mb-5 text-[10px] tracking-widest text-red-300">机制记录</div>
+              <div className="mb-5 space-y-2">
+                {boss.mechanics.map(mechanic => (
+                  <div key={mechanic.name} className="border border-red-500/15 bg-red-950/10 p-3">
+                    <div className="mb-1 text-xs font-black text-red-100">{mechanic.name}</div>
+                    <div className="text-[11px] leading-relaxed text-foreground/75">{mechanic.description}</div>
+                  </div>
+                ))}
               </div>
               <div className="mb-5 text-[10px] tracking-widest text-red-300">攻略要点</div>
               <ul className="space-y-1.5">
-                {currentBoss.strategyTips.map((tip, index) => (
+                {boss.strategyTips.map((tip, index) => (
                   <li key={tip} className="flex gap-2 text-[11px] leading-relaxed text-foreground/85">
                     <span className="shrink-0 text-[10px] text-red-400/70">{String(index + 1).padStart(2, "0")}</span>
                     <span>{tip}</span>
                   </li>
                 ))}
               </ul>
+              <div className="mt-5 grid gap-3 text-[11px]">
+                <Info label="弱点" value={boss.weakness} />
+                <Info label="警告" value={boss.warning} />
+              </div>
             </div>
           </motion.div>
         </motion.div>
