@@ -45,6 +45,9 @@ jobs:
           PORT: 4173
           BASE_PATH: /fangzhou-plan/
 
+      - name: Add SPA fallback
+        run: cp artifacts/oc-card-battle/dist/public/index.html artifacts/oc-card-battle/dist/public/404.html
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
