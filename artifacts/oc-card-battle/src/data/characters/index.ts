@@ -135,10 +135,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "应急储备",
           type: "恢复",
-          description: "为指定角色回复 1 点生命，并获得 1 层恢复，驱散虚弱状态。",
+          description: "为指定角色回复 1 点生命，并获得 1 层恢复，驱散虚弱状态。每打出 3 张应急储备，恢复 1 点能量。",
           range: "单体",
           cost: 1,
-          effect: "治疗 1；获得恢复；移除虚弱。",
+          effect: "治疗 1；获得恢复；移除虚弱；每 3 次回能。",
           upgrade: "",
           icon: byName(character, "应急储备")?.icon || character.skills[1]?.icon,
           castIllustration: byName(character, "应急储备")?.castIllustration,
@@ -146,7 +146,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "铲尖猛击",
           type: "攻击",
-          description: "对单体敌人造成 3 点伤害，并将 1 张应急储备放入自己的手牌。",
+          description: "对单体敌人造成 3 点伤害，并将 1 张应急储备放入自己的手牌。主动弃置时，也获得 1 张应急储备。",
           range: "单体",
           cost: 3,
           effect: "造成 3 点伤害；生成 1 张应急储备。",
@@ -223,10 +223,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "雾愈之触",
           type: "恢复",
-          description: "为指定队友恢复 1 点生命；若目标身上存在异常状态，按异常层数额外回复等量生命，并随机驱散最多 1 个异常状态。",
+          description: "为指定队友恢复 1 点生命；若目标身上存在异常状态，按异常层数额外回复等量生命，并随机驱散最多 2 个异常状态。",
           range: "单体",
           cost: 1,
-          effect: "治疗 1 + 目标异常层数，并驱散 1 个异常。",
+          effect: "治疗 1 + 目标异常层数，并驱散最多 2 个异常。",
           upgrade: "",
           icon: heal?.icon,
           castIllustration: heal?.castIllustration,
@@ -234,10 +234,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "幻海囚笼",
           type: "异能",
-          description: "造成 3 点伤害，并强制造成伤害打断效果。若造成击杀，该卡片返回手中。",
+          description: "造成 3 点伤害，并强制造成伤害打断效果。若造成击杀，该卡片返回手中。这张牌消费 -1。",
           range: "单体",
           cost: 3,
-          effect: "造成 3 点伤害；若 BOSS 正在蓄力，强制打断。",
+          effect: "造成 3 点伤害；若 BOSS 正在蓄力，强制打断；费用 -1。",
           upgrade: "击杀目标时返回手牌。",
           icon: cage?.icon,
           castIllustration: cage?.castIllustration,
@@ -352,10 +352,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "过载分析",
           type: "天赋",
-          description: "每次打出阿德琳·温莎的卡牌，获得 1 层过载分析。达到 3 层时清空，抽 1 张牌并获得 1 点能量。",
+          description: "每次打出阿德琳·温莎的卡牌，获得 1 层过载分析。达到 4 层时清空，抽 1 张牌并获得 2 点能量。",
           range: "单体",
           cost: 0,
-          effect: "打出自身牌累计过载；3 层转化为抽牌与能量。",
+          effect: "打出自身牌累计过载；4 层转化为抽牌与 2 点能量。",
           upgrade: "",
           icon: talent?.icon || character.avatar,
           castIllustration: talent?.castIllustration,
@@ -455,7 +455,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const talent = byType(character, "天赋");
     return {
       ...character,
-      hp: 5,
+      hp: 6,
       skills: [
         {
           name: "时序守护",
@@ -471,10 +471,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "时序修复",
           type: "恢复",
-          description: "下回合摸牌 +1、能量恢复 +1、手牌上限 +1，仅持续 1 回合。时序修复返回手牌。",
+          description: "下回合摸牌 +1、能量恢复 +1、手牌上限 +1，仅持续 1 回合。时序修复返回手牌。主动弃置时，有 50% 几率恢复 1 点能量。",
           range: "多体",
           cost: 2,
-          effect: "获得下回合资源增益；本牌返回手牌。",
+          effect: "获得下回合资源增益；本牌返回手牌；弃置可能回能。",
           upgrade: "",
           icon: byName(character, "Chronos Repair 时序修复")?.icon || byName(character, "时序修复")?.icon || character.skills[1]?.icon,
           castIllustration: byName(character, "Chronos Repair 时序修复")?.castIllustration,
@@ -584,7 +584,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const talent = byType(character, "天赋");
     return {
       ...character,
-      hp: 6,
+      hp: 7,
       skills: [
         {
           name: "时空之力",
@@ -630,7 +630,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     return {
       ...character,
       avatar: shisiAvatarCutout,
-      hp: 5,
+      hp: 6,
       skills: [
         {
           name: "残响之躯",
@@ -657,10 +657,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "残响视能",
           type: "防御",
-          description: "为指定队友生成 1 层护盾。护盾可免疫一次直接伤害，触发后消耗。",
+          description: "为指定队友生成 1 层护盾，并抽 1 张该角色对应的手牌。护盾可免疫一次直接伤害，触发后消耗。",
           range: "单体",
           cost: 2,
-          effect: "指定队友获得 1 层护盾。",
+          effect: "指定队友获得 1 层护盾；抽 1 张该角色手牌。",
           upgrade: "",
           icon: shield?.icon,
           castIllustration: shield?.castIllustration,
@@ -718,7 +718,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const talent = byType(character, "天赋");
     return {
       ...character,
-      hp: 7,
+      hp: 5,
       skills: [
         {
           name: "朽茧余温",
@@ -734,10 +734,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "蛛丝汲生",
           type: "异能",
-          description: "赋予指定队友蛛丝汲生。目标当前回合所有卡牌消费 -1；目标卡牌造成伤害后，为莉拉和目标同时回复 1 点生命，持续 2 回合。",
+          description: "赋予指定队友蛛丝汲生，持续 3 回合。目标卡牌消费 -1；目标卡牌造成伤害后，为莉拉和目标同时回复 1 点生命。莉拉支付 1 点生命。",
           range: "单体",
           cost: 4,
-          effect: "指定队友获得蛛丝汲生：费用 -1，造成伤害后双方回复。",
+          effect: "指定队友获得蛛丝汲生 3 回合：费用 -1，造成伤害后双方回复；莉拉失去 1 点生命。",
           upgrade: "",
           icon: byName(character, "蛛丝汲生")?.icon || character.skills[1]?.icon,
           castIllustration: byName(character, "蛛丝汲生")?.castIllustration,
@@ -772,7 +772,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const talent = byType(character, "天赋");
     return {
       ...character,
-      hp: 4,
+      hp: 5,
       skills: [
         {
           name: "影痕共鸣",
@@ -826,15 +826,15 @@ function applyTeacherBattleOverrides(character: Character): Character {
     const talent = byType(character, "天赋");
     return {
       ...character,
-      hp: 5,
+      hp: 6,
       skills: [
         {
           name: "残时回响",
           type: "天赋",
-          description: "鸢尾每次造成伤害时，33% 几率获得 1 点能量；每次受到伤害时，33% 几率在下个回合额外摸 1 张自己的牌。",
+          description: "鸢尾每次造成伤害时，40% 几率摸 1 张自己的牌，不会摸到时滞刀域；每次受到伤害时，40% 几率恢复 1 点能量。",
           range: "单体",
           cost: 0,
-          effect: "造成伤害可能回能；受到伤害可能准备额外抽牌。",
+          effect: "造成伤害可能抽自己的牌；受到伤害可能回能。",
           upgrade: "",
           icon: talent?.icon || character.avatar,
           castIllustration: talent?.castIllustration,
@@ -997,7 +997,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "剥离、千层刃",
           type: "攻击",
-          description: "对目标造成 1-3 点伤害，并附加 1 层流血。如果黑雾迷阵触发，额外叠加 1 层流血，并回复 1 点能量。",
+          description: "对目标造成 1-3 点伤害，并附加 1 层流血。如果黑雾迷阵触发，额外附加 1 层流血，并回复 1 点能量。",
           range: "单体",
           cost: 3,
           effect: "随机伤害；附加流血；迷阵触发时回能。",
@@ -1054,7 +1054,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "赤刃·裂空",
           type: "攻击",
-          description: "对目标造成 1-3 点伤害。如果造成的伤害超过目标总生命值的 30%，则立刻杀死非 BOSS 对手。",
+          description: "对目标造成 2-3 点伤害。如果造成的伤害超过目标总生命值的 30%，则立刻杀死非 BOSS 对手。",
           range: "单体",
           cost: 3,
           effect: "随机伤害；高伤害时斩杀非 BOSS 目标。",
@@ -1065,10 +1065,10 @@ function applyTeacherBattleOverrides(character: Character): Character {
         {
           name: "烬影·回溯",
           type: "防御",
-          description: "清除自身 1 项减益，获得 1 层攻击提升。如果本回合瑞文使用过赤刃·裂空，则生成 1 张赤刃·裂空放入手牌。",
+          description: "清除自身 1 项减益，获得攻击提升（持续 2 回合），并把 1 张赤刃·裂空放入手牌。",
           range: "单体",
           cost: 2,
-          effect: "自我净化；获得攻击提升；本回合使用过赤刃时补牌。",
+          effect: "自我净化；获得 2 回合攻击提升；生成赤刃·裂空。",
           upgrade: "",
           icon: rewind?.icon || character.skills[2]?.icon || redBlade?.icon,
           castIllustration: rewind?.castIllustration,
@@ -1083,7 +1083,7 @@ function applyTeacherBattleOverrides(character: Character): Character {
 // ─── Aggregate ───────────────────────────────────────────────────────────────
 
 const loadedFromGlob: Character[] = Object.entries(modules)
-  .filter(([path]) => !path.endsWith("/index.ts"))
+  .filter(([path]) => !path.endsWith("/index.ts") && !/\/char-\d+\.ts$/.test(path))
   .map(([, mod]) => parseCharacter(mod.default))
   .filter((c): c is Character => c !== null)
   .map(applyTeacherBattleOverrides);

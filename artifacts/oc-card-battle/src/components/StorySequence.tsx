@@ -18,6 +18,7 @@ export function StorySequence({ slides, backHref, backLabel, completeHref, compl
   const slide = slides[index];
   const isFirst = index === 0;
   const isLast = index === slides.length - 1;
+  const hasForeground = !!slide.foregroundImage;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#07040d] text-white">
@@ -33,9 +34,28 @@ export function StorySequence({ slides, backHref, backLabel, completeHref, compl
         />
       </AnimatePresence>
 
-      <div className="absolute inset-0 bg-gradient-to-r from-[#07040d]/95 via-[#07040d]/62 to-[#07040d]/15" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#07040d] via-transparent to-[#07040d]/45" />
+      <div className={hasForeground ? "absolute inset-0 bg-[#07040d]/78" : "absolute inset-0 bg-gradient-to-r from-[#07040d]/95 via-[#07040d]/62 to-[#07040d]/15"} />
+      <div className={hasForeground ? "absolute inset-0 bg-gradient-to-r from-[#07040d]/96 via-[#07040d]/44 to-[#07040d]/82" : "absolute inset-0 bg-gradient-to-t from-[#07040d] via-transparent to-[#07040d]/45"} />
       <div className="scanlines" />
+
+      {slide.foregroundImage && (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`foreground-${slide.foregroundImage}`}
+            initial={{ opacity: 0, y: 18, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -12, scale: 0.99 }}
+            transition={{ duration: 0.42 }}
+            className="pointer-events-none fixed inset-0 z-[2] flex items-end justify-center pt-16"
+          >
+            <img
+              src={slide.foregroundImage}
+              alt=""
+              className="max-h-[88vh] max-w-[42vw] object-contain object-bottom drop-shadow-[0_0_42px_rgba(0,0,0,0.82)]"
+            />
+          </motion.div>
+        </AnimatePresence>
+      )}
 
       <div className="relative z-10 flex min-h-screen flex-col justify-between p-5 md:p-8">
         <Button asChild variant="ghost" className="w-fit rounded-none text-white/65 hover:text-white">

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { characters, Character, Skill, isCharacterBattleReady } from "@/data/characters";
 import { currentBoss } from "@/data/enemies";
+import { bossClearStories } from "@/data/story";
 import { useTeamStore } from "@/store/teamStore";
 import { ArrowLeft, RotateCcw, Sparkles, Swords, Zap } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,6 +132,7 @@ interface BattleState {
   hand: BattleCard[];
   zidianCount: number;
   quickShotCount: number;
+  emergencyReserveCount: number;
   playedThisTurn: string[];
   playedSkillNames: string[];
   log: string[];
@@ -166,7 +168,11 @@ const bossIntroLines: Record<string, string> = {
   "boss-01": "花还没有开完。你们也是来看我的吗？",
   "boss-02": "我来开始。她会完成。你们已经在过程之中了。",
   "boss-03": "别踩碎蓝色的火。它们会替我记住，你们每一次呼吸的位置。",
+  "boss-04": "赤月已经升起。猎场关闭，审判开始。",
+  "boss-05": "请安静。祷告结束后，神会亲自回答你们。",
 };
+
+const LOG_LIMIT = 80;
 
 const statusText: Partial<Record<StatusId, string>> = {
   talent: "天赋",
@@ -242,7 +248,7 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
       name: "攻击提升",
       icon: attackUpIcon,
       duration: 1,
-      description: "本回合伤害卡额外造成 1 点伤害。",
+      description: "持续期间伤害卡额外造成 1 点伤害。",
     },
     immunity: {
       id,
@@ -257,7 +263,7 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
       icon: markIcon,
       duration: 2,
       stacks: 1,
-      description: "隐匿无效；受到直接伤害时有 50% 几率额外承受 1 点伤害。",
+      description: "隐匿无效；受到伤害时每层提供 50% 几率额外承受 1 点伤害，2 层后必定触发。",
     },
     ambush: {
       id,
@@ -388,8 +394,8 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
       id,
       name: "蛛丝汲生",
       icon: regenIcon,
-      duration: 2,
-      description: "卡牌费用 -1；造成伤害后，莉拉和目标同时回复 1 点生命。",
+      duration: 3,
+      description: "卡牌费用 -1；造成伤害后，莉拉和目标同时回复 1 点生命，持续 3 回合。",
     },
     lilaReviveUsed: {
       id,
@@ -419,6 +425,17 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
 function addOrRefreshStatus(statuses: Status[], status: Status): Status[] {
   const existing = statuses.find(s => s.id === status.id);
   if (!existing) return [...statuses, status];
+  if (status.id === "mark") {
+    return statuses.map(s =>
+      s.id === status.id
+        ? {
+            ...s,
+            duration: (s.duration ?? 0) + 1,
+            stacks: (s.stacks ?? 1) + (status.stacks ?? 1),
+          }
+        : s,
+    );
+  }
   if (status.id === "uncontrolled" || status.id === "silkDrain" || status.id === "irisField" || status.id === "coma") {
     return statuses.map(s => (s.id === status.id ? { ...s, duration: status.duration ?? s.duration, icon: status.icon || s.icon } : s));
   }
@@ -473,6 +490,21 @@ function removeDebuffs(statuses: Status[], amount: number): Status[] {
   });
 }
 
+function removeRandomDebuffs(statuses: Status[], amount: number): Status[] {
+  const debuffIndexes = statuses
+    .map((status, index) => ({ status, index }))
+    .filter(item => isDebuff(item.status))
+    .map(item => item.index);
+  const toRemove = new Set<number>();
+  const candidates = [...debuffIndexes];
+  while (toRemove.size < amount && candidates.length > 0) {
+    const picked = Math.floor(Math.random() * candidates.length);
+    toRemove.add(candidates[picked]);
+    candidates.splice(picked, 1);
+  }
+  return statuses.filter((_, index) => !toRemove.has(index));
+}
+
 function removeSpecificStatus(statuses: Status[], id: StatusId): Status[] {
   return statuses.filter(status => status.id !== id);
 }
@@ -501,7 +533,7 @@ function makeTalentStatus(character: Character, id: StatusId, patch: Partial<Sta
 
 function getSkillCost(skill: Skill): number {
   if (skill.name === "雾愈之触") return 1;
-  if (skill.name === "幻海囚笼") return 3;
+  if (skill.name === "幻海囚笼") return 2;
   if (skill.name === "时序祷言") return 2;
   if (skill.name === "残响视能") return 2;
   if (skill.name === "紫电瞬杀") return 2;
@@ -600,6 +632,10 @@ function drawOwnerCards(state: BattleState, ownerId: string, amount: number, exc
   return next;
 }
 
+function getBaseMaxHand(team: Character[]): number {
+  return team.some(character => character.creator?.studentId === "12250801") ? 8 : 7;
+}
+
 function createInitialState(team: Character[]): BattleState {
   const talentLogs: string[] = [];
   const fighters = team.map(character => {
@@ -635,20 +671,22 @@ function createInitialState(team: Character[]): BattleState {
   }));
   const visibleBossUnit = currentBoss.encounterType === "summoner"
     ? enemyUnits.find(unit => unit.id === "boss3-witch")
+    : currentBoss.encounterType === "finale"
+      ? enemyUnits.find(unit => unit.id === "boss5-nun")
     : undefined;
 
   const base: BattleState = {
     turn: 1,
     energy: 5,
     maxEnergy: team.some(character => character.creator?.studentId === "12250801") ? 12 : 10,
-    maxHand: team.some(character => character.creator?.studentId === "12250801") ? 8 : 6,
+    maxHand: getBaseMaxHand(team),
     drawPerTurn: 3,
     phase: "player",
     fighters,
     enemyUnits,
     boss: {
       hp: visibleBossUnit ? visibleBossUnit.hp : enemyUnits.length ? enemyUnits.reduce((sum, unit) => sum + unit.hp, 0) : currentBoss.hp,
-      maxHp: visibleBossUnit ? visibleBossUnit.maxHp : enemyUnits.length ? enemyUnits.reduce((sum, unit) => sum + unit.maxHp, 0) : currentBoss.hp,
+      maxHp: visibleBossUnit ? visibleBossUnit.maxHp : enemyUnits.length ? enemyUnits.filter(unit => unit.hp > 0).reduce((sum, unit) => sum + unit.maxHp, 0) : currentBoss.hp,
       statuses: [],
       flowerBurial: false,
       berserk: false,
@@ -660,6 +698,7 @@ function createInitialState(team: Character[]): BattleState {
     hand: [],
     zidianCount: 0,
     quickShotCount: 0,
+    emergencyReserveCount: 0,
     playedThisTurn: [],
     playedSkillNames: [],
     log: [`战斗开始。方舟小队遭遇${currentBoss.name}。`, ...talentLogs],
@@ -752,12 +791,9 @@ function afterFighterDamaged(state: BattleState, fighter: Fighter, logs: string[
     logs.push("朽茧余温预备触发：莉拉将在下个己方回合复苏。");
   }
 
-  if (nextFighter.character.creator?.studentId === "12250816" && nextFighter.hp > 0 && Math.random() < 0.33) {
-    nextFighter = {
-      ...nextFighter,
-      statuses: addOrRefreshStatus(nextFighter.statuses, makeTalentStatus(nextFighter.character, "nextDraw", { name: "残时回响", description: "下回合额外摸 1 张鸢尾的牌。" })),
-    };
-    logs.push("残时回响触发：鸢尾下回合将额外摸牌。");
+  if (nextFighter.character.creator?.studentId === "12250816" && nextFighter.hp > 0 && Math.random() < 0.4) {
+    next = { ...next, energy: Math.min(next.maxEnergy, next.energy + 1) };
+    logs.push("残时回响触发：鸢尾受到伤害，恢复 1 点能量。");
   }
 
   return { state: next, fighter: nextFighter };
@@ -861,6 +897,12 @@ function syncAggregateBoss(state: BattleState): BattleState {
     const bossUnit = state.enemyUnits.find(unit => unit.id === "boss3-witch");
     return { ...state, boss: { ...state.boss, hp: bossUnit?.hp ?? 0, maxHp: bossUnit?.maxHp ?? currentBoss.hp } };
   }
+  if (currentBoss.encounterType === "finale") {
+    const active = state.enemyUnits.filter(unit => unit.hp > 0);
+    const hp = active.reduce((sum, unit) => sum + unit.hp, 0);
+    const maxHp = active.reduce((sum, unit) => sum + unit.maxHp, 0) || currentBoss.hp;
+    return { ...state, boss: { ...state.boss, hp, maxHp } };
+  }
   const hp = state.enemyUnits.reduce((sum, unit) => sum + unit.hp, 0);
   const maxHp = state.enemyUnits.reduce((sum, unit) => sum + unit.maxHp, 0);
   return { ...state, boss: { ...state.boss, hp, maxHp } };
@@ -876,7 +918,8 @@ function getTargetEnemyId(state: BattleState, targetId?: string): string | undef
     const wolf = state.enemyUnits.find(unit => unit.id === "boss3-wolf" && unit.hp > 0);
     const witch = state.enemyUnits.find(unit => unit.id === "boss3-witch");
     const witchMarked = witch?.statuses.some(status => status.id === "mark");
-    if (targetId === "boss3-witch" && wolf && !witchMarked) return wolf.id;
+    const liVaughnAlive = state.fighters.some(fighter => fighter.character.creator?.studentId === "12250805" && fighter.hp > 0);
+    if (targetId === "boss3-witch" && wolf && !witchMarked && !liVaughnAlive) return wolf.id;
     if (!targetId && wolf) return wolf.id;
   }
   if (!targetId && state.selectedEnemyId && state.enemyUnits.some(unit => unit.id === state.selectedEnemyId && unit.hp > 0)) return state.selectedEnemyId;
@@ -888,14 +931,44 @@ function addEnemyStatus(state: BattleState, status: Status, targetId?: string): 
   if (!hasEnemyUnits(state)) {
     return { ...state, boss: { ...state.boss, statuses: addOrRefreshStatus(state.boss.statuses, status) } };
   }
-  const id = getTargetEnemyId(state, targetId);
+  const explicitMarkTarget =
+    status.id === "mark" && targetId && state.enemyUnits.some(unit => unit.id === targetId && unit.hp > 0)
+      ? targetId
+      : undefined;
+  const id = explicitMarkTarget ?? getTargetEnemyId(state, targetId);
   if (!id) return state;
+  const target = state.enemyUnits.find(unit => unit.id === id);
+  if (target?.statuses.some(existing => existing.id === "immunity") && isDebuff(status)) return state;
   return {
     ...state,
     enemyUnits: state.enemyUnits.map(unit =>
       unit.id === id ? { ...unit, statuses: addOrRefreshStatus(unit.statuses, status) } : unit,
     ),
   };
+}
+
+function addEnemyStatusToAll(state: BattleState, status: Status): BattleState {
+  if (!hasEnemyUnits(state)) {
+    return { ...state, boss: { ...state.boss, statuses: addOrRefreshStatus(state.boss.statuses, status) } };
+  }
+  return {
+    ...state,
+    enemyUnits: state.enemyUnits.map(unit =>
+      unit.hp > 0 ? { ...unit, statuses: addOrRefreshStatus(unit.statuses, status) } : unit,
+    ),
+  };
+}
+
+function addEnemyStatusToRandom(state: BattleState, status: Status, logs: string[], label: string): BattleState {
+  if (!hasEnemyUnits(state)) {
+    logs.push(`${label}：${currentBoss.name} 获得${status.name}。`);
+    return { ...state, boss: { ...state.boss, statuses: addOrRefreshStatus(state.boss.statuses, status) } };
+  }
+  const alive = state.enemyUnits.filter(unit => unit.hp > 0);
+  const target = alive[Math.floor(Math.random() * alive.length)];
+  if (!target) return state;
+  logs.push(`${label}：${target.name} 获得${status.name}。`);
+  return addEnemyStatus(state, status, target.id);
 }
 
 function addEnemyDebuffFromCard(state: BattleState, card: BattleCard, status: Status, logs: string[], targetId?: string, refundEnergyOnMist = false): { state: BattleState; mistTriggered: boolean } {
@@ -907,9 +980,23 @@ function addEnemyDebuffFromCard(state: BattleState, card: BattleCard, status: St
   next = addEnemyStatus(next, status, targetId);
   if (refundEnergyOnMist) {
     next = { ...next, energy: Math.min(next.maxEnergy, next.energy + 1) };
+    logs.push("黑雾迷阵触发：额外叠加 1 层减益，并回复 1 点能量。");
+    return { state: next, mistTriggered: true };
   }
-  logs.push(refundEnergyOnMist ? "黑雾迷阵触发：额外叠加 1 层减益，并回复 1 点能量。" : "黑雾迷阵触发：额外叠加 1 层减益。");
+  logs.push("黑雾迷阵触发：额外叠加 1 层减益。");
   return { state: next, mistTriggered: true };
+}
+
+function cleanseEnemyUnits(state: BattleState, amount: number, logs: string[], reason: string): BattleState {
+  if (!hasEnemyUnits(state)) return state;
+  let cleansed = 0;
+  const enemyUnits = state.enemyUnits.map(unit => {
+    if (unit.hp <= 0 || !unit.statuses.some(isDebuff)) return unit;
+    cleansed += 1;
+    return { ...unit, statuses: removeDebuffs(unit.statuses, amount) };
+  });
+  if (cleansed > 0) logs.push(`${reason}：${cleansed} 名敌方单位驱散了 ${amount} 层减益。`);
+  return { ...state, enemyUnits };
 }
 
 function applyTwinSymbiosis(state: BattleState, logs: string[]): BattleState {
@@ -937,6 +1024,22 @@ function enemyHasStatus(state: BattleState, id: StatusId, targetId?: string): bo
   return !!state.enemyUnits.find(unit => unit.id === target)?.statuses.some(status => status.id === id);
 }
 
+function getEnemyMarkStacks(state: BattleState, targetId?: string): number {
+  if (!hasEnemyUnits(state)) return getStatusStacks(state.boss.statuses, "mark");
+  const target = getTargetEnemyId(state, targetId);
+  const unit = state.enemyUnits.find(enemy => enemy.id === target);
+  return getStatusStacks(unit?.statuses ?? [], "mark");
+}
+
+function getMarkBonusDamage(markStacks: number, logs: string[], targetName = "目标"): number {
+  if (markStacks <= 0) return 0;
+  if (Math.random() < Math.min(1, markStacks * 0.5)) {
+    logs.push(`标记触发：${targetName} 额外承受 1 点伤害。`);
+    return 1;
+  }
+  return 0;
+}
+
 function applyDirectBossDamage(state: BattleState, card: BattleCard, baseDamage: number, logs: string[], targetId?: string): BattleState {
   const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
   let damage = Math.max(0, baseDamage + getFighterDamageBonus(owner));
@@ -955,11 +1058,9 @@ function applyDirectBossDamage(state: BattleState, card: BattleCard, baseDamage:
       ),
     };
   }
-  const mark = enemyHasStatus(state, "mark", targetId);
-  if (mark && Math.random() < 0.5) {
-    damage += 1;
-    logs.push("标记触发：目标额外承受 1 点伤害。");
-  }
+  const markStacks = getEnemyMarkStacks(state, targetId);
+  const mark = markStacks > 0;
+  damage += getMarkBonusDamage(markStacks, logs);
   nextState = applyBossDamage(nextState, damage, logs, targetId);
 
   const latestOwner = nextState.fighters.find(fighter => fighter.character.id === card.ownerId);
@@ -990,12 +1091,39 @@ function applyDirectBossDamage(state: BattleState, card: BattleCard, baseDamage:
     logs.push("蛛丝汲生触发：莉拉与攻击者各回复 1 点生命。");
   }
 
-  if (damage > 0 && latestOwner?.character.creator?.studentId === "12250816" && Math.random() < 0.33) {
-    nextState = { ...nextState, energy: Math.min(nextState.maxEnergy, nextState.energy + 1) };
-    logs.push("残时回响触发：获得 1 点能量。");
+  if (damage > 0 && latestOwner?.character.creator?.studentId === "12250816" && Math.random() < 0.4) {
+    nextState = drawOwnerCards(nextState, latestOwner.character.id, 1, "时滞刀域");
+    logs.push("残时回响触发：鸢尾摸 1 张自己的牌。");
   }
 
   return nextState;
+}
+
+function applyDirectAllEnemyDamage(state: BattleState, card: BattleCard, baseDamage: number, logs: string[]): BattleState {
+  const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
+  const base = Math.max(0, baseDamage + getFighterDamageBonus(owner));
+
+  if (!hasEnemyUnits(state)) {
+    const markStacks = getStatusStacks(state.boss.statuses, "mark");
+    return applyBossDamage(state, base + getMarkBonusDamage(markStacks, logs, currentBoss.name), logs);
+  }
+
+  let next = state;
+  const damagedNames: string[] = [];
+  for (const unit of state.enemyUnits) {
+    if (unit.hp <= 0) continue;
+    const markStacks = getStatusStacks(unit.statuses, "mark");
+    const damage = base + getMarkBonusDamage(markStacks, logs, unit.name);
+    damagedNames.push(`${unit.name} ${damage}`);
+    next = {
+      ...next,
+      enemyUnits: next.enemyUnits.map(enemy =>
+        enemy.id === unit.id ? { ...enemy, hp: Math.max(0, enemy.hp - damage) } : enemy,
+      ),
+    };
+  }
+  if (damagedNames.length) logs.push(`范围伤害命中：${damagedNames.join("；")}。`);
+  return processFinaleTransitions(syncAggregateBoss(next), logs);
 }
 
 function triggerFlowerBurialIfNeeded(state: BattleState, boss: BossState, logs: string[]): Pick<BattleState, "boss" | "flowerBurialFlash" | "flowerBurialRevealed"> {
@@ -1020,16 +1148,56 @@ function triggerFlowerBurialIfNeeded(state: BattleState, boss: BossState, logs: 
   };
 }
 
+function processFinaleTransitions(state: BattleState, logs: string[]): BattleState {
+  if (currentBoss.encounterType !== "finale" || !hasEnemyUnits(state)) return state;
+  const nun = state.enemyUnits.find(unit => unit.id === "boss5-nun");
+  const god = state.enemyUnits.find(unit => unit.id === "boss5-god");
+  if (nun && nun.hp <= 0 && god && god.hp <= 0 && !state.boss.flowerBurial) {
+    logs.push("圣棘之母倒下，圣堂地面裂开：溺神残响降临。");
+    const next = {
+      ...state,
+      selectedEnemyId: "boss5-god",
+      flowerBurialFlash: true,
+      flowerBurialRevealed: false,
+      boss: { ...state.boss, flowerBurial: true, berserk: true, charging: null },
+      enemyUnits: state.enemyUnits.map(unit => {
+        if (unit.id === "boss5-god") return { ...unit, hp: unit.maxHp, statuses: [] };
+        if (unit.id === "boss5-nun") return { ...unit, hp: 0, statuses: [] };
+        return { ...unit, hp: 0, statuses: [] };
+      }),
+    };
+    return syncAggregateBoss(next);
+  }
+  return state;
+}
+
 function applyBossDamage(state: BattleState, amount: number, logs: string[], targetId?: string): BattleState {
   if (hasEnemyUnits(state)) {
     const id = getTargetEnemyId(state, targetId);
     if (!id) return state;
     const enemy = state.enemyUnits.find(unit => unit.id === id);
+    const hunterWolfDamageInterrupt =
+      currentBoss.encounterType === "hunterWolf" &&
+      amount > 0 &&
+      enemy?.statuses.some(status => status.id === "charge") &&
+      !(id === "boss4-hunter" && state.turn >= 5);
+    const finaleDamageInterrupt =
+      currentBoss.encounterType === "finale" &&
+      amount > 0 &&
+      enemy?.statuses.some(status => status.id === "charge");
     const nextUnits = state.enemyUnits.map(unit =>
-      unit.id === id ? { ...unit, hp: Math.max(0, unit.hp - amount) } : unit,
+      unit.id === id
+        ? {
+            ...unit,
+            hp: Math.max(0, unit.hp - amount),
+            statuses: hunterWolfDamageInterrupt || finaleDamageInterrupt ? removeSpecificStatus(unit.statuses, "charge") : unit.statuses,
+          }
+        : unit,
     );
     if (enemy) logs.push(`${enemy.name} 受到 ${amount} 点伤害。`);
-    return syncAggregateBoss({ ...state, enemyUnits: nextUnits });
+    if (hunterWolfDamageInterrupt && amount > 0) logs.push(`${enemy?.name ?? "目标"} 的蓄力被伤害打断。`);
+    if (finaleDamageInterrupt) logs.push(`${enemy?.name ?? "目标"} 的蓄力被伤害打断。`);
+    return processFinaleTransitions(syncAggregateBoss({ ...state, enemyUnits: nextUnits }), logs);
   }
   let boss = { ...state.boss, hp: Math.max(0, state.boss.hp - amount) };
   if (boss.charging && !boss.flowerBurial) {
@@ -1048,6 +1216,7 @@ function applyBossDamage(state: BattleState, amount: number, logs: string[], tar
 
 export default function Battle() {
   const { selectedCharacterIds } = useTeamStore();
+  const [, setLocation] = useLocation();
   const team = useMemo(() => {
     const selected = selectedCharacterIds
       .map(id => characters.find(character => character.id === id))
@@ -1055,31 +1224,52 @@ export default function Battle() {
     if (selected.length === 3) return selected;
     return characters.filter(character => !character.locked && isCharacterBattleReady(character)).slice(0, 3);
   }, [selectedCharacterIds]);
+  const resultPreview = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("previewResult") : null;
 
-  const [state, setState] = useState<BattleState>(() => createInitialState(team));
+  const [state, setState] = useState<BattleState>(() => {
+    const initial = createInitialState(team);
+    if (resultPreview === "victory") {
+      return { ...initial, phase: "victory", finaleLine: "赤月沉入城垣，猎场终于重新打开。" };
+    }
+    return initial;
+  });
   const [targetingCard, setTargetingCard] = useState<BattleCard | null>(null);
   const [enemyTargetingCard, setEnemyTargetingCard] = useState<BattleCard | null>(null);
   const [hoveredCard, setHoveredCard] = useState<BattleCard | null>(null);
   const [playedCard, setPlayedCard] = useState<BattleCard | null>(null);
   const [discardMode, setDiscardMode] = useState(false);
   const [bossHit, setBossHit] = useState(false);
+
+  useEffect(() => {
+    if (state.phase === "victory" && currentBoss.id === "boss-05") {
+      setLocation("/epilogue/final");
+    }
+  }, [state.phase, setLocation]);
+
   const alive = state.fighters.filter(fighter => fighter.hp > 0);
   const flowerImage = state.boss.berserk ? currentBoss.berserkImage : currentBoss.flowerBurialImage ?? currentBoss.image;
   const battleBackgroundImage = currentBoss.battleBackground ?? (state.boss.flowerBurial && state.flowerBurialRevealed ? flowerImage ?? currentBoss.image : currentBoss.image);
   const bossDisplayImage =
-    currentBoss.encounterType === "summoner"
+    currentBoss.encounterType === "finale" && state.enemyUnits.some(unit => unit.id === "boss5-god" && unit.hp > 0)
+      ? currentBoss.flowerBurialImage ?? currentBoss.image
+      : currentBoss.encounterType === "finale" && state.enemyUnits.some(unit => unit.id === "boss5-nun" && unit.statuses.some(status => status.id === "damageBoost"))
+        ? currentBoss.berserkImage ?? currentBoss.image
+        : currentBoss.encounterType === "summoner"
       ? currentBoss.flowerBurialImage ?? currentBoss.image
       : state.boss.flowerBurial && state.flowerBurialRevealed
         ? flowerImage ?? currentBoss.image
         : currentBoss.image;
   const visibleEnemyUnits = currentBoss.encounterType === "summoner"
     ? state.enemyUnits.filter(unit => unit.id !== "boss3-wolf" || unit.hp > 0)
+    : currentBoss.encounterType === "finale"
+      ? state.enemyUnits.filter(unit => unit.hp > 0)
     : state.enemyUnits;
   const enemyTargets: EnemyTarget[] = visibleEnemyUnits.length
     ? visibleEnemyUnits.map(unit => {
         const wolfAlive = state.enemyUnits.some(enemy => enemy.id === "boss3-wolf" && enemy.hp > 0);
         const unitMarked = unit.statuses.some(status => status.id === "mark");
-        const hiddenByWolf = currentBoss.encounterType === "summoner" && unit.id === "boss3-witch" && wolfAlive && !unitMarked;
+        const liVaughnAlive = state.fighters.some(fighter => fighter.character.creator?.studentId === "12250805" && fighter.hp > 0);
+        const hiddenByWolf = currentBoss.encounterType === "summoner" && unit.id === "boss3-witch" && wolfAlive && !unitMarked && !liVaughnAlive;
         return {
           id: unit.id,
           name: unit.name,
@@ -1163,7 +1353,7 @@ export default function Battle() {
     ];
   }, [team, state.turn]);
   const [introIndex, setIntroIndex] = useState(0);
-  const introActive = introIndex < introSlides.length;
+  const introActive = !resultPreview && introIndex < introSlides.length;
 
   useEffect(() => {
     if (!state.flowerBurialFlash) return;
@@ -1213,7 +1403,7 @@ export default function Battle() {
       const ownerUncontrolled = ownerBefore?.statuses.some(status => status.id === "uncontrolled");
       if (ownerUncontrolled && Math.random() < 0.4 && card.skill.name !== "雾爪") {
         logs.push(`${card.ownerName} 的失控触发，行动失败。`);
-        return { ...next, log: [...logs, ...next.log].slice(0, 14) };
+        return { ...next, log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
       }
       next = applyCardPlayedTalents(next, card, logs);
       const beforeBossHp = next.boss.hp;
@@ -1234,18 +1424,20 @@ export default function Battle() {
         next = { ...next, hand: [...next.hand, card] };
       }
 
-      next = applyTwinSymbiosis(next, logs);
+      if (currentBoss.encounterType === "twin") {
+        next = applyTwinSymbiosis(next, logs);
+      }
 
       if (next.boss.hp <= 0) {
         return {
           ...next,
           phase: "victory",
           finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)],
-          log: [...logs, "兽骨花冠被击败。", ...next.log].slice(0, 14),
+          log: [...logs, "兽骨花冠被击败。", ...next.log].slice(0, LOG_LIMIT),
         };
       }
 
-      return { ...next, log: [...logs, ...next.log].slice(0, 14) };
+      return { ...next, log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
     });
   };
 
@@ -1295,10 +1487,18 @@ export default function Battle() {
     setState(prev => runEnemyTurn(prev));
   };
 
+  if (state.phase === "victory" || state.phase === "defeat") {
+    return (
+      <div className="h-screen bg-[#090510] text-white">
+        <ResultOverlay phase={state.phase} line={state.finaleLine} onRestart={restart} />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen overflow-hidden bg-[#090510] text-white">
+    <div className="h-screen overflow-hidden bg-[#090510] text-white">
       <div className="scanlines" />
-      <div className="relative min-h-screen">
+      <div className="relative h-screen overflow-hidden">
         <motion.img
           key={battleBackgroundImage}
           src={battleBackgroundImage}
@@ -1310,8 +1510,8 @@ export default function Battle() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#090510]/70 via-[#090510]/82 to-[#090510]" />
 
-        <div className="relative z-10 grid min-h-screen grid-rows-[auto_minmax(0,1fr)_auto] gap-2 p-3">
-          <header className="flex items-center justify-between">
+        <div className="relative z-10 grid h-screen grid-rows-[36px_minmax(0,1fr)_136px] gap-2 p-2">
+          <header className="flex min-h-0 items-center justify-between">
             <Button asChild variant="ghost" className="text-white/70 hover:text-white">
               <Link href="/team">
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1325,8 +1525,8 @@ export default function Battle() {
             </div>
           </header>
 
-          <main className="grid min-h-0 grid-cols-[260px_1fr_300px] gap-3">
-            <section className="space-y-2">
+          <main className="grid min-h-0 grid-cols-[252px_minmax(500px,1fr)_320px] gap-2">
+            <section className="min-h-0 space-y-2 overflow-y-auto pr-1">
               {state.fighters.map((fighter, index) => (
                 <FighterPanel
                   key={fighter.character.id}
@@ -1350,7 +1550,7 @@ export default function Battle() {
               )}
             </section>
 
-            <section className="relative flex min-h-0 flex-col items-center justify-between border border-red-500/20 bg-black/35 p-4">
+            <section className="relative flex min-h-0 flex-col items-center justify-between border border-red-500/20 bg-black/35 p-3">
               <div className="w-full">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
@@ -1371,38 +1571,43 @@ export default function Battle() {
                 />
               </div>
 
-              <motion.div
-                animate={bossHit ? { x: [0, -10, 10, -6, 6, 0], scale: [1, 1.02, 1] } : { x: 0, scale: 1 }}
-                transition={{ duration: 0.46 }}
-                className="relative flex w-full min-h-0 flex-1 items-center justify-center"
-              >
-                {bossHit && <div className="absolute inset-0 bg-red-500/12 mix-blend-screen" />}
-                <img
-                  src={bossDisplayImage}
-                  alt={currentBoss.name}
-                  className="max-h-[36vh] max-w-[62%] object-contain drop-shadow-[0_0_36px_rgba(220,38,38,0.36)]"
-                />
-              </motion.div>
+              <div className="grid min-h-0 w-full flex-1 grid-cols-[minmax(0,1fr)_340px] gap-3 pt-3">
+                <motion.div
+                  animate={bossHit ? { x: [0, -10, 10, -6, 6, 0], scale: [1, 1.02, 1] } : { x: 0, scale: 1 }}
+                  transition={{ duration: 0.46 }}
+                  className="relative flex min-h-0 items-center justify-center overflow-hidden border border-red-500/20 bg-black/12 p-2"
+                >
+                  {bossHit && <div className="absolute inset-0 bg-red-500/12 mix-blend-screen" />}
+                  <img
+                    src={bossDisplayImage}
+                    alt={currentBoss.name}
+                    className="h-full w-full object-contain drop-shadow-[0_0_42px_rgba(220,38,38,0.42)]"
+                  />
+                </motion.div>
 
-              <div className="w-full border border-white/10 bg-black/40 p-2.5">
-                <div className="mb-2 text-xs font-bold tracking-widest text-white/50">战斗记录</div>
-                <div className="max-h-[112px] space-y-1 overflow-hidden text-xs leading-relaxed text-white/75">
-                  {state.log.slice(0, 7).map((entry, index) => <LogLine key={index} text={entry} />)}
+                <div className="flex min-h-0 flex-col border border-red-500/35 bg-black/45 p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <div className="text-xs font-bold tracking-widest text-red-100/75">战斗记录</div>
+                    <div className="font-mono text-[10px] text-white/35">{state.log.length}/{LOG_LIMIT}</div>
+                  </div>
+                  <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-2 text-xs leading-relaxed text-white/75">
+                    {state.log.map((entry, index) => <LogLine key={`${index}-${entry}`} text={entry} />)}
+                  </div>
                 </div>
               </div>
             </section>
 
-            <section className="border border-white/10 bg-black/35 p-4">
-              <h2 className="mb-3 text-sm font-black tracking-widest text-primary">行动面板</h2>
+            <section className="flex min-h-0 flex-col overflow-y-auto border border-white/10 bg-black/35 p-3">
+              <h2 className="mb-2 text-sm font-black tracking-widest text-primary">行动面板</h2>
 
-              <div className="mb-4 grid grid-cols-2 overflow-hidden border border-primary/40 bg-primary/10">
-                <div className="flex flex-col items-center justify-center border-r border-primary/30 px-4 py-3">
-                  <div className="font-mono text-4xl font-black leading-none text-cyan-100">{state.turn}</div>
+              <div className="mb-3 grid grid-cols-2 overflow-hidden border border-primary/40 bg-primary/10">
+                <div className="flex flex-col items-center justify-center border-r border-primary/30 px-4 py-2">
+                  <div className="font-mono text-3xl font-black leading-none text-cyan-100">{state.turn}</div>
                   <div className="mt-1 text-[10px] font-bold tracking-[0.25em] text-cyan-100/60">TURN</div>
                 </div>
-                <div className="flex flex-col items-center justify-center px-4 py-3">
-                  <Zap className="mb-1 h-9 w-9 fill-yellow-300 text-yellow-300 drop-shadow-[0_0_18px_rgba(250,204,21,0.7)]" />
-                  <div className="font-mono text-4xl font-black leading-none text-yellow-100">{state.energy}</div>
+                <div className="flex flex-col items-center justify-center px-4 py-2">
+                  <Zap className="mb-1 h-8 w-8 fill-yellow-300 text-yellow-300 drop-shadow-[0_0_18px_rgba(250,204,21,0.7)]" />
+                  <div className="font-mono text-3xl font-black leading-none text-yellow-100">{state.energy}</div>
                   <div className="mt-0.5 font-mono text-[10px] font-bold text-yellow-100/45">MAX {state.maxEnergy}</div>
                   <div className="mt-1 text-[10px] font-bold tracking-[0.25em] text-yellow-100/60">ENERGY</div>
                 </div>
@@ -1427,14 +1632,14 @@ export default function Battle() {
                 </div>
               )}
 
-              <div className="mb-4 grid grid-cols-2 gap-2 text-xs">
+              <div className="mb-3 grid grid-cols-2 gap-2 text-xs">
                 <InfoTile label="手牌上限" value={state.maxHand} />
                 <InfoTile label="能量上限" value={state.maxEnergy} />
                 <InfoTile label="每回合抽牌" value={state.drawPerTurn + (state.turn <= 3 ? 1 : 0)} />
                 <InfoTile label="能量增长" value="+4" />
                 <InfoTile label="存活角色" value={`${alive.length}/3`} />
               </div>
-              <Button onClick={endTurn} disabled={state.phase !== "player"} className="mb-4 w-full rounded-none bg-primary hover:bg-primary/80">
+              <Button onClick={endTurn} disabled={state.phase !== "player"} className="mb-3 h-9 w-full rounded-none bg-primary hover:bg-primary/80">
                 结束回合
               </Button>
               <Button
@@ -1445,20 +1650,20 @@ export default function Battle() {
                 }}
                 disabled={state.phase !== "player" || state.hand.length === 0}
                 variant="outline"
-                className={`mb-4 w-full rounded-none border-white/20 bg-transparent text-white ${discardMode ? "border-yellow-300 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.22)]" : ""}`}
+                className={`mb-3 h-9 w-full rounded-none border-white/20 bg-transparent text-white ${discardMode ? "border-yellow-300 text-yellow-100 shadow-[0_0_18px_rgba(250,204,21,0.22)]" : ""}`}
               >
                 {discardMode ? "点击一张手牌弃置" : "主动弃牌"}
               </Button>
-              <Button onClick={restart} variant="outline" className="w-full rounded-none border-white/20 bg-transparent text-white">
+              <Button onClick={restart} variant="outline" className="h-9 w-full rounded-none border-white/20 bg-transparent text-white">
                 <RotateCcw className="mr-2 h-4 w-4" />
                 重新开始
               </Button>
             </section>
           </main>
 
-          <footer className="relative min-h-[154px] overflow-x-auto border-t border-white/10 pt-2">
+          <footer className="relative min-h-0 overflow-x-auto border-t border-white/10 pt-1">
             {hoveredCard && <SkillHoverPanel card={hoveredCard} cost={getCardCost(hoveredCard, state.fighters)} />}
-            <div className="grid min-w-max grid-flow-col auto-cols-[126px] gap-2">
+            <div className="grid min-w-max grid-flow-col auto-cols-[112px] gap-2">
               {state.hand.map(card => {
                 const cost = getCardCost(card, state.fighters);
                 const disabled = state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
@@ -1482,9 +1687,6 @@ export default function Battle() {
           {introActive && <IntroOverlay slide={introSlides[introIndex]} onNext={() => setIntroIndex(index => index + 1)} />}
           {state.flowerBurialFlash && <FlowerBurialOverlay image={flowerImage ?? currentBoss.image} berserk={state.boss.berserk} />}
           {playedCard && <PlayedCardAnimation card={playedCard} />}
-          {(state.phase === "victory" || state.phase === "defeat") && (
-            <ResultOverlay phase={state.phase} line={state.finaleLine} onRestart={restart} />
-          )}
         </AnimatePresence>
       </div>
     </div>
@@ -1507,6 +1709,23 @@ function applyDiscardEffects(state: BattleState, card: BattleCard): BattleState 
     logs.push("念念不忘弃置效果：获得 1 点能量和 1 层记忆检索。");
   }
 
+  if (card.skill.name === "时序断层·停滞场" && ownerIndex >= 0) {
+    next = {
+      ...next,
+      fighters: next.fighters.map((fighter, index) =>
+        index === ownerIndex ? { ...fighter, statuses: addOrRefreshStatus(fighter.statuses, makeTalentStatus(fighter.character, "overload")) } : fighter,
+      ),
+    };
+    logs.push("时序断层·停滞场弃置效果：获得 1 层过载分析。");
+  }
+
+  if (card.skill.name === "铲尖猛击" && ownerIndex >= 0) {
+    const owner = next.fighters[ownerIndex].character;
+    const reserve = getActiveSkills(owner).find(skill => skill.name === "应急储备");
+    if (reserve) next = addGeneratedCard(next, owner, reserve);
+    logs.push("铲尖猛击弃置效果：生成 1 张应急储备。");
+  }
+
   if (card.skill.name === "绝境应激" && ownerIndex >= 0) {
     next = {
       ...next,
@@ -1519,7 +1738,15 @@ function applyDiscardEffects(state: BattleState, card: BattleCard): BattleState 
     logs.push("绝境应激弃置效果：自身获得恢复和虚弱。");
   }
 
-  return { ...next, log: [...logs, ...next.log].slice(0, 14) };
+  if (card.skill.name === "时序修复" && Math.random() < 0.5) {
+    next = {
+      ...next,
+      energy: Math.min(next.maxEnergy, next.energy + 1),
+    };
+    logs.push("时序修复弃置效果触发：恢复 1 点能量。");
+  }
+
+  return { ...next, log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
 }
 
 function applyCardPlayedTalents(state: BattleState, card: BattleCard, logs: string[]): BattleState {
@@ -1531,11 +1758,11 @@ function applyCardPlayedTalents(state: BattleState, card: BattleCard, logs: stri
   if (owner.character.creator?.studentId === "12250807") {
     let statuses = addOrRefreshStatus(owner.statuses, makeTalentStatus(owner.character, "overload"));
     const overload = statuses.find(status => status.id === "overload");
-    if ((overload?.stacks ?? 0) >= 3) {
+    if ((overload?.stacks ?? 0) >= 4) {
       statuses = statuses.filter(status => status.id !== "overload");
-      next = { ...next, energy: Math.min(next.maxEnergy, next.energy + 1) };
+      next = { ...next, energy: Math.min(next.maxEnergy, next.energy + 2) };
       next = drawCards(next, 1);
-      logs.push("过载分析达到 3 层：抽 1 张牌并获得 1 点能量。");
+      logs.push("过载分析达到 4 层：抽 1 张牌并获得 2 点能量。");
     }
     next = {
       ...next,
@@ -1636,7 +1863,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   }
 
   if (card.skill.name === "赤刃·裂空") {
-    const damage = 1 + Math.floor(Math.random() * 3);
+    const damage = 2 + Math.floor(Math.random() * 2);
     const targetId = getTargetEnemyId(state, enemyTargetId);
     const beforeTarget = targetId ? state.enemyUnits.find(unit => unit.id === targetId) : undefined;
     let next = applyDirectBossDamage(state, card, damage, logs, enemyTargetId);
@@ -1655,40 +1882,51 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "烬影·回溯") {
     const ownerIndex = state.fighters.findIndex(fighter => fighter.character.id === card.ownerId);
     if (ownerIndex === -1) return state;
-    const usedRedBlade = state.playedSkillNames.includes(`${card.ownerId}:赤刃·裂空`);
     const fighters = state.fighters.map((fighter, fighterIndex) =>
       fighterIndex === ownerIndex
         ? {
             ...fighter,
-            statuses: addOrRefreshStatus(removeDebuffs(fighter.statuses, 1), makeStatus("attackUp")),
+            statuses: addOrRefreshStatus(removeDebuffs(fighter.statuses, 1), makeStatus("attackUp", { duration: 2 })),
           }
         : fighter,
     );
     let next: BattleState = { ...state, fighters };
-    if (usedRedBlade) {
-      const owner = state.fighters[ownerIndex].character;
-      const redBlade = getActiveSkills(owner).find(skill => skill.name === "赤刃·裂空");
-      if (redBlade) next = addGeneratedCard(next, owner, redBlade);
-    }
-    logs.push(usedRedBlade ? "烬影·回溯净化自身，获得攻击提升，并生成 1 张赤刃·裂空。" : "烬影·回溯净化自身，并获得 1 层攻击提升。");
+    const owner = state.fighters[ownerIndex].character;
+    const redBlade = getActiveSkills(owner).find(skill => skill.name === "赤刃·裂空");
+    if (redBlade) next = addGeneratedCard(next, owner, redBlade);
+    logs.push("烬影·回溯净化自身，获得 2 回合攻击提升，并生成 1 张赤刃·裂空。");
     return next;
   }
 
   if (card.skill.name === "蛛丝汲生") {
     const index = targetIndex ?? findHealTarget(state.fighters);
+    const ownerIndex = state.fighters.findIndex(fighter => fighter.character.id === card.ownerId);
     const icon = card.skill.icon || state.fighters.find(fighter => fighter.character.id === card.ownerId)?.character.avatar;
-    const fighters = state.fighters.map((fighter, fighterIndex) =>
-      fighterIndex === index
-        ? {
-            ...fighter,
-            statuses: addOrRefreshStatus(
-              fighter.statuses,
-              makeStatus("silkDrain", { icon, name: "蛛丝汲生", duration: 2, description: "卡牌费用 -1；造成伤害后，莉拉和目标同时回复 1 点生命。" }),
-            ),
-          }
-        : fighter,
-    );
-    logs.push(`蛛丝汲生连接 ${state.fighters[index].character.name}。`);
+    const fighters = state.fighters.map((fighter, fighterIndex) => {
+      let nextFighter = fighter;
+      if (fighterIndex === index) {
+        nextFighter = {
+          ...nextFighter,
+          statuses: addOrRefreshStatus(
+            nextFighter.statuses,
+            makeStatus("silkDrain", { icon, name: "蛛丝汲生", duration: 3, description: "卡牌费用 -1；造成伤害后，莉拉和目标同时回复 1 点生命，持续 3 回合。" }),
+          ),
+        };
+      }
+      if (fighterIndex === ownerIndex) {
+        const hp = Math.max(0, nextFighter.hp - 1);
+        const needsReviveFlag = hp <= 0 && !nextFighter.statuses.some(status => status.id === "lilaReviveUsed");
+        nextFighter = {
+          ...nextFighter,
+          hp,
+          statuses: needsReviveFlag
+            ? addOrRefreshStatus(nextFighter.statuses, makeTalentStatus(nextFighter.character, "lilaReviveUsed"))
+            : nextFighter.statuses,
+        };
+      }
+      return nextFighter;
+    });
+    logs.push(`蛛丝汲生连接 ${state.fighters[index].character.name}，莉拉支付 1 点生命。`);
     return { ...state, fighters };
   }
 
@@ -1707,7 +1945,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "蝶落守彰") {
     let next = applyDirectBossDamage(state, card, 2, logs);
     if (state.fighters.some(fighter => fighter.statuses.some(status => status.id === "silkDrain"))) {
-      next = { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("wound")) } };
+      next = addEnemyStatus(next, makeStatus("wound"), enemyTargetId);
       logs.push("蝶落守彰追加重伤。");
     }
     return next;
@@ -1716,7 +1954,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "时间锚点") {
     const next = applyDirectBossDamage(state, card, 1, logs);
     logs.push("时间锚点造成 1 点伤害，并附加标记。");
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("mark")) } };
+    return addEnemyStatus(next, makeStatus("mark"), enemyTargetId);
   }
 
   if (card.skill.name === "碎片脉冲") {
@@ -1735,7 +1973,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
       next = { ...next, boss: { ...next.boss, charging: null, crownCooldown: 3 } };
       logs.push("时停回溯成功打断蓄力。");
       if (Math.random() < 0.5) {
-        next = { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("coma")) } };
+        next = addEnemyStatus(next, makeStatus("coma"), enemyTargetId);
         logs.push("时停回溯追加昏迷。");
       }
     }
@@ -1788,7 +2026,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "雾蚀突袭") {
     const next = applyDirectBossDamage(state, card, 2, logs);
     logs.push("雾蚀突袭造成 2 点伤害，并附加重伤。");
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("wound")) } };
+    return addEnemyStatus(next, makeStatus("wound"), enemyTargetId);
   }
 
   if (card.skill.name === "异化释放") {
@@ -1829,8 +2067,16 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
           }
         : fighter,
     );
+    const emergencyReserveCount = state.emergencyReserveCount + 1;
+    const energyReward = emergencyReserveCount % 3 === 0 ? 1 : 0;
     logs.push(`应急储备治疗 ${state.fighters[index].character.name} 1 点，并赋予恢复。`);
-    return { ...state, fighters };
+    if (energyReward > 0) logs.push("应急储备连携触发：每打出 3 张应急储备，恢复 1 点能量。");
+    return {
+      ...state,
+      fighters,
+      emergencyReserveCount,
+      energy: Math.min(state.maxEnergy, state.energy + energyReward),
+    };
   }
 
   if (card.skill.name === "铲尖猛击") {
@@ -1845,13 +2091,14 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "勿忘") {
     const next = applyDirectBossDamage(state, card, 2, logs);
     logs.push("勿忘造成 2 点伤害，并施加标记。");
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("mark")) } };
+    return addEnemyStatus(next, makeStatus("mark"), enemyTargetId);
   }
 
   if (card.skill.name === "铭记") {
-    const marked = state.boss.statuses.some(status => status.id === "mark");
+    const markStacks = getEnemyMarkStacks(state, enemyTargetId);
+    const marked = markStacks > 0;
     let next = applyDirectBossDamage(state, card, marked ? 5 : 3, logs);
-    if (marked) next = { ...next, boss: refreshBossDebuffs(next.boss) };
+    if (marked && !hasEnemyUnits(next)) next = { ...next, boss: refreshBossDebuffs(next.boss) };
     logs.push(marked ? "铭记命中标记目标，造成 5 点伤害并刷新减益。" : "铭记造成 3 点伤害。");
     return next;
   }
@@ -1861,8 +2108,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
     const fighters = state.fighters.map((fighter, fighterIndex) =>
       fighterIndex === index ? { ...fighter, statuses: addOrRefreshStatus(fighter.statuses, makeStatus("shield")) } : fighter,
     );
-    logs.push("预知残影：丽·沃恩获得护盾，并标记敌人。");
-    return { ...state, fighters, boss: { ...state.boss, statuses: addOrRefreshStatus(state.boss.statuses, makeStatus("mark")) } };
+    return addEnemyStatusToRandom({ ...state, fighters }, makeStatus("mark"), logs, "预知残影：丽·沃恩获得护盾，并标记敌人");
   }
 
   if (card.skill.name === "时痕回溯") {
@@ -1898,7 +2144,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
     const damage = 1 + Math.floor(Math.random() * 3);
     const next = applyDirectBossDamage(state, card, damage, logs);
     logs.push(`命运折射造成 ${damage} 点伤害，并附加失控。`);
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("uncontrolled")) } };
+    return addEnemyStatus(next, makeStatus("uncontrolled"), enemyTargetId);
   }
 
   if (card.skill.name === "记忆重构·档案提取") {
@@ -1944,7 +2190,7 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
     const empowered = owner?.statuses.some(isDebuff) ? 1 : 0;
     const next = applyDirectBossDamage(state, card, 1 + empowered, logs);
     logs.push(`雾爪造成 ${1 + empowered} 点伤害，并附加流血。`);
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("bleed")) } };
+    return addEnemyStatus(next, makeStatus("bleed"), enemyTargetId);
   }
 
   if (card.skill.name === "净化领域") {
@@ -1978,10 +2224,10 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
             ...fighter,
             statuses: addOrRefreshStatus(
               addOrRefreshStatus(
-                addOrRefreshStatus(fighter.statuses, makeTalentStatus(fighter.character, "nextDraw")),
-                makeTalentStatus(fighter.character, "nextEnergy"),
+                addOrRefreshStatus(fighter.statuses, makeTalentStatus(fighter.character, "nextDraw", { duration: 2 })),
+                makeTalentStatus(fighter.character, "nextEnergy", { duration: 2 }),
               ),
-              makeTalentStatus(fighter.character, "nextHand"),
+              makeTalentStatus(fighter.character, "nextHand", { duration: 2 }),
             ),
           }
         : fighter,
@@ -2007,14 +2253,14 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
     const damage = 1 + Math.floor(Math.random() * 4);
     const next = applyDirectBossDamage(state, card, damage, logs);
     logs.push(`时空之刃·断界造成 ${damage} 点伤害，并附加重伤。`);
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("wound")) } };
+    return addEnemyStatus(next, makeStatus("wound"), enemyTargetId);
   }
 
   if (card.skill.name === "时空之刃·扭曲") {
     const damage = 1 + Math.floor(Math.random() * 2);
     const next = applyDirectBossDamage(state, card, damage, logs);
     logs.push(`时空之刃·扭曲造成 ${damage} 点伤害，并附加失控。`);
-    return { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("uncontrolled")) } };
+    return addEnemyStatus(next, makeStatus("uncontrolled"), enemyTargetId);
   }
 
   if (card.skill.name === "念念不忘") {
@@ -2031,12 +2277,11 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "永恒离别") {
     const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
     const memory = getStatusStacks(owner?.statuses ?? [], "memory");
-    const next = applyDirectBossDamage(state, card, 2 + memory, logs);
-    const withWeak = Math.random() < 0.5
-      ? { ...next, boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("weak")) } }
-      : next;
-    logs.push(`永恒离别造成 ${2 + memory} 点伤害${withWeak !== next ? "，并附加虚弱" : ""}。`);
-    return withWeak;
+    let next = applyDirectBossDamage(state, card, 2 + memory, logs);
+    const weakApplied = Math.random() < 0.5;
+    if (weakApplied) next = addEnemyStatus(next, makeStatus("weak"), enemyTargetId);
+    logs.push(`永恒离别造成 ${2 + memory} 点伤害${weakApplied ? "，并附加虚弱" : ""}。`);
+    return next;
   }
 
   if (card.skill.name === "废墟行者") {
@@ -2063,18 +2308,18 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
     const index = targetIndex ?? findHealTarget(state.fighters);
     const target = state.fighters[index];
     const debuffStacks = target.statuses
-      .filter(status => status.id === "daze" || status.id === "bleed")
+      .filter(isDebuff)
       .reduce((sum, status) => sum + (status.stacks ?? 1), 0);
     const heal = 1 + debuffStacks;
     const fighters = state.fighters.map((fighter, fighterIndex) =>
       fighterIndex === index
         ? {
             ...healFighter(fighter, heal),
-            statuses: removeOneDebuff(fighter.statuses),
+            statuses: removeRandomDebuffs(fighter.statuses, 2),
           }
         : fighter,
     );
-    logs.push(`雾愈之触治疗 ${target.character.name} ${heal} 点，并驱散 1 个异常。`);
+    logs.push(`雾愈之触治疗 ${target.character.name} ${heal} 点，并驱散最多 2 个异常。`);
     return { ...state, fighters };
   }
 
@@ -2113,8 +2358,9 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
         ? { ...fighter, statuses: addOrRefreshStatus(fighter.statuses, makeStatus("shield")) }
         : fighter,
     );
-    logs.push(`残响视能为 ${state.fighters[index].character.name} 生成 1 层护盾。`);
-    return { ...state, fighters };
+    const next = drawOwnerCards({ ...state, fighters }, state.fighters[index].character.id, 1);
+    logs.push(`残响视能为 ${state.fighters[index].character.name} 生成 1 层护盾，并抽取 1 张该角色手牌。`);
+    return next;
   }
 
   if (card.skill.name === "紫电瞬杀") {
@@ -2128,12 +2374,10 @@ function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copi
   if (card.skill.name === "虚空刃舞") {
     const boosted = hasShieldedDamageBoost(state, card.ownerId) ? 1 : 0;
     const damage = 3 + boosted;
-    const next = applyBossDamage(state, damage, logs);
+    let next = applyDirectAllEnemyDamage(state, card, damage, logs);
+    next = addEnemyStatusToAll(next, makeStatus("bleed"));
     logs.push(`虚空刃舞造成 ${damage} 点伤害，并附加 1 层流血。`);
-    return {
-      ...next,
-      boss: { ...next.boss, statuses: addOrRefreshStatus(next.boss.statuses, makeStatus("bleed")) },
-    };
+    return next;
   }
 
   const fallbackDamage = copied ? 1 : 2;
@@ -2165,6 +2409,8 @@ function findShieldTarget(fighters: Fighter[]): number {
 }
 
 function runEnemyTurn(state: BattleState): BattleState {
+  if (hasEnemyUnits(state) && currentBoss.encounterType === "finale") return runFinaleEnemyTurn(state);
+  if (hasEnemyUnits(state) && currentBoss.encounterType === "hunterWolf") return runHunterWolfEnemyTurn(state);
   if (hasEnemyUnits(state) && currentBoss.encounterType === "summoner") return runSummonerEnemyTurn(state);
   if (hasEnemyUnits(state)) return runTwinEnemyTurn(state);
 
@@ -2211,7 +2457,7 @@ function runEnemyTurn(state: BattleState): BattleState {
   }
 
   if (next.boss.hp <= 0) {
-    return { ...next, phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, 14) };
+    return { ...next, phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
   if (next.boss.statuses.some(status => status.id === "coma")) {
@@ -2236,10 +2482,10 @@ function runEnemyTurn(state: BattleState): BattleState {
   }
 
   if (next.fighters.every(fighter => fighter.hp <= 0)) {
-    return { ...next, phase: "defeat", finaleLine: defeatLines[Math.floor(Math.random() * defeatLines.length)], log: [...logs, ...next.log].slice(0, 14) };
+    return { ...next, phase: "defeat", finaleLine: defeatLines[Math.floor(Math.random() * defeatLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
-  return startPlayerTurn({ ...next, log: [...logs, ...next.log].slice(0, 14) });
+  return startPlayerTurn({ ...next, log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
 }
 
 function releaseCrown(state: BattleState, logs: string[]): BattleState {
@@ -2311,9 +2557,24 @@ function lullaby(state: BattleState, logs: string[]): BattleState {
 function runTwinEnemyTurn(state: BattleState): BattleState {
   let next = syncAggregateBoss({ ...state, phase: "enemy" as Phase });
   const logs: string[] = ["敌方回合开始：双生刃鬼展开同步行动。"];
+  const blueTwinAlive = next.enemyUnits.some(unit => unit.id === "cangqi" && unit.hp > 0);
+  if (blueTwinAlive && state.turn > 0 && state.turn % 3 === 0) {
+    next = cleanseEnemyUnits(next, 1, logs, "苍契维持同步校准");
+  }
 
   const waiting = next.enemyUnits.find(unit => unit.hp > 0 && unit.statuses.some(status => status.id === "twinSymbiosis"));
   if (waiting) {
+    const symbiosis = waiting.statuses.find(status => status.id === "twinSymbiosis");
+    if ((symbiosis?.duration ?? 1) > 1) {
+      logs.push(`${waiting.name} 正在维持共生重构，本回合跳过行动。`);
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(unit =>
+          unit.id === waiting.id ? { ...unit, statuses: decrementDurations(unit.statuses) } : unit,
+        ),
+      };
+      return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
+    }
     next = {
       ...next,
       enemyUnits: next.enemyUnits.map(unit => {
@@ -2325,7 +2586,7 @@ function runTwinEnemyTurn(state: BattleState): BattleState {
         return unit;
       }),
     };
-    return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, 14) });
+    return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
   }
 
   const hitByBlade = new Map<string, Set<"red" | "blue">>();
@@ -2390,10 +2651,10 @@ function runTwinEnemyTurn(state: BattleState): BattleState {
   };
 
   if (next.fighters.every(fighter => fighter.hp <= 0)) {
-    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: "结束了。早就开始了。", log: [...logs, ...next.log].slice(0, 14) };
+    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: "结束了。早就开始了。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
-  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, 14) });
+  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
 }
 
 function runSummonerEnemyTurn(state: BattleState): BattleState {
@@ -2403,7 +2664,7 @@ function runSummonerEnemyTurn(state: BattleState): BattleState {
   const wolf = next.enemyUnits.find(unit => unit.id === "boss3-wolf");
 
   if (!witch || witch.hp <= 0) {
-    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, 14) };
+    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
   if (!wolf || wolf.hp <= 0) {
@@ -2425,7 +2686,7 @@ function runSummonerEnemyTurn(state: BattleState): BattleState {
       }),
     };
     logs.push("鸦月织影召唤影狼，并退入影幕。");
-    return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, 14) });
+    return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
   }
 
   if (witch.hp <= Math.floor(witch.maxHp / 2) && state.turn % 3 === 0) {
@@ -2445,7 +2706,15 @@ function runSummonerEnemyTurn(state: BattleState): BattleState {
           : unit,
       ),
     };
-    logs.push("鸦月织影使用林间回生：回复 3 点生命并获得恢复。");
+    next = {
+      ...next,
+      enemyUnits: next.enemyUnits.map(unit =>
+        unit.id === "boss3-witch"
+          ? { ...unit, statuses: removeDebuffs(unit.statuses, 1) }
+          : unit,
+      ),
+    };
+    logs.push("鸦月织影使用林间回生：回复 3 点生命，获得恢复，并驱散自身 1 层减益。");
   }
 
   let hitIds: string[] = [];
@@ -2494,10 +2763,435 @@ function runSummonerEnemyTurn(state: BattleState): BattleState {
   };
 
   if (next.fighters.every(fighter => fighter.hp <= 0)) {
-    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: defeatLines[Math.floor(Math.random() * defeatLines.length)], log: [...logs, ...next.log].slice(0, 14) };
+    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: defeatLines[Math.floor(Math.random() * defeatLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
-  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, 14) });
+  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
+}
+
+function runFinaleEnemyTurn(state: BattleState): BattleState {
+  let next = processFinaleTransitions(syncAggregateBoss({ ...state, phase: "enemy" as Phase }), []);
+  const logs: string[] = ["敌方回合开始：圣棘祷文在破碎圣堂内回响。"];
+  const nun = next.enemyUnits.find(unit => unit.id === "boss5-nun");
+  const serpent = next.enemyUnits.find(unit => unit.id === "boss5-serpent");
+  const horror = next.enemyUnits.find(unit => unit.id === "boss5-horror");
+  const god = next.enemyUnits.find(unit => unit.id === "boss5-god");
+  const godAlive = !!god && god.hp > 0;
+
+  next = {
+    ...next,
+    enemyUnits: next.enemyUnits.map(unit => {
+      const regen = getStatusStacks(unit.statuses, "regen");
+      if (unit.hp <= 0 || regen <= 0) return unit;
+      logs.push(`${unit.name} 因恢复回复 ${regen} 点生命。`);
+      return { ...unit, hp: Math.min(unit.maxHp, unit.hp + regen) };
+    }),
+  };
+
+  if (godAlive) {
+    const currentGod = next.enemyUnits.find(unit => unit.id === "boss5-god");
+    if (!currentGod || currentGod.hp <= 0) return { ...syncAggregateBoss(next), phase: "victory", finaleLine: "钟声停下，方舟终于听见了黎明。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+
+    if (next.turn % 2 === 1 && !currentGod.statuses.some(status => status.id === "immunity")) {
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(unit =>
+          unit.id === "boss5-god"
+            ? { ...unit, statuses: addOrRefreshStatus(unit.statuses, makeStatus("immunity", { name: "神格隔绝", duration: 2, description: "奇数回合获得，免疫减益直到下个己方窗口结束。" })) }
+            : unit,
+        ),
+      };
+      logs.push("溺神残响展开神格隔绝：本轮减益难以生效。");
+    } else if (next.turn % 2 === 0) {
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(unit =>
+          unit.id === "boss5-god"
+            ? {
+                ...unit,
+                statuses: addOrRefreshStatus(
+                  addOrRefreshStatus(unit.statuses, makeStatus("damageBoost", { name: "紫潮增幅", duration: 2, description: "偶数回合获得，造成伤害提高。" })),
+                  makeStatus("regen", { name: "神血回潮", duration: 2, stacks: 3, description: "可被驱散。回合开始时每层回复 1 点生命，拖延会继续叠高。" }),
+                ),
+              }
+            : unit,
+        ),
+      };
+      logs.push("紫潮回涌：溺神残响获得攻击提升与 3 层可驱散恢复。");
+    }
+
+    const chargedGod = next.enemyUnits.find(unit => unit.id === "boss5-god");
+    if (chargedGod?.statuses.some(status => status.id === "charge")) {
+      next = finaleGodJudgement(next, chargedGod, logs);
+    } else if (Math.random() < 0.42) {
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(unit =>
+          unit.id === "boss5-god"
+            ? { ...unit, statuses: addOrRefreshStatus(unit.statuses, makeStatus("charge", { name: "沉没福音", description: "下次行动对全体造成伤害，并施加多种异常。受到伤害可打断。" })) }
+            : unit,
+        ),
+      };
+      logs.push("溺神残响开始蓄力：沉没福音。");
+    } else {
+      next = finaleGodStrike(next, chargedGod ?? currentGod, logs);
+    }
+  } else if (nun && nun.hp > 0) {
+    const nunBerserk = nun.hp <= Math.floor(nun.maxHp / 2);
+    if (nunBerserk && !nun.statuses.some(status => status.id === "damageBoost")) {
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(unit => {
+          if (unit.id === "boss5-nun") {
+            return { ...unit, statuses: addOrRefreshStatus(unit.statuses, makeStatus("damageBoost", { name: "殉道圣餐", description: "半血后进入进攻姿态。" })) };
+          }
+          if (unit.id === "boss5-horror" && unit.hp <= 0) {
+            return { ...unit, hp: unit.maxHp, statuses: [makeStatus("regen", { name: "圣血回潮", duration: 3, stacks: 2, description: "可被驱散的强化恢复。" })] };
+          }
+          if (unit.hp > 0) {
+            return { ...unit, statuses: addOrRefreshStatus(unit.statuses, makeStatus("regen", { name: "圣血回潮", duration: 3, stacks: 2, description: "可被驱散的强化恢复。" })) };
+          }
+          return unit;
+        }),
+      };
+      logs.push("殉道圣餐触发：强化蛇群出现，敌方获得 2 层可驱散恢复。");
+    }
+
+    const activeEnemies = next.enemyUnits.filter(unit => unit.hp > 0 && unit.id !== "boss5-god");
+    const allFull = activeEnemies.length > 0 && activeEnemies.every(unit => unit.hp >= unit.maxHp);
+    if (allFull && next.turn % 3 === 0) {
+      next = finaleDamageAll(next, 1, logs, "圣棘之母释放满溢祷告", "weak");
+    } else if (!nunBerserk && Math.random() < 0.42) {
+      const damaged = activeEnemies.filter(unit => unit.hp < unit.maxHp);
+      const target = damaged.sort((a, b) => a.hp - b.hp)[0];
+      if (target) {
+        next = {
+          ...next,
+          enemyUnits: next.enemyUnits.map(unit => unit.id === target.id ? { ...unit, hp: Math.min(unit.maxHp, unit.hp + 3) } : unit),
+        };
+        logs.push(`圣棘之母治疗 ${target.name} 3 点生命。`);
+      } else {
+        next = finaleSummonSerpent(next, logs);
+      }
+    } else if ((serpent?.hp ?? 0) <= 0 && !nunBerserk) {
+      next = finaleSummonSerpent(next, logs);
+    } else {
+      next = finaleNunAttack(next, logs, nunBerserk);
+    }
+
+    const latestSerpent = next.enemyUnits.find(unit => unit.id === "boss5-serpent");
+    if (latestSerpent && latestSerpent.hp > 0) next = finaleSerpentBite(next, latestSerpent, logs, false);
+    const latestHorror = next.enemyUnits.find(unit => unit.id === "boss5-horror");
+    if (latestHorror && latestHorror.hp > 0) next = finaleSerpentBite(next, latestHorror, logs, true);
+  }
+
+  next = {
+    ...next,
+    enemyUnits: next.enemyUnits.map(unit => ({
+      ...unit,
+      statuses: unit.statuses.some(status => status.id === "charge")
+        ? [
+            ...decrementDurations(unit.statuses.filter(status => status.id !== "charge")),
+            ...unit.statuses.filter(status => status.id === "charge"),
+          ]
+        : decrementDurations(unit.statuses),
+    })),
+  };
+
+  if (next.fighters.every(fighter => fighter.hp <= 0)) {
+    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: "祷告继续，方舟没有等到回声。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+  }
+
+  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
+}
+
+function finaleSummonSerpent(state: BattleState, logs: string[]): BattleState {
+  logs.push("圣棘之母召唤毒棘蛇。");
+  return {
+    ...state,
+    enemyUnits: state.enemyUnits.map(unit => unit.id === "boss5-serpent" ? { ...unit, hp: unit.maxHp, statuses: [] } : unit),
+  };
+}
+
+function finaleNunAttack(state: BattleState, logs: string[], berserk: boolean): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const result = applyDamageToFighter(target, berserk ? 2 : 1);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  logs.push(`圣棘之母以血棘刺穿 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? after.fighter : fighter),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function finaleSerpentBite(state: BattleState, unit: EnemyUnitState, logs: string[], strong: boolean): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const result = applyDamageToFighter(target, strong ? 2 : 1);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  const statuses = result.blocked ? after.fighter.statuses : addOrRefreshStatus(after.fighter.statuses, makeStatus("bleed"));
+  logs.push(`${unit.name} 咬中 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害并附加流血`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? { ...after.fighter, statuses } : fighter),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function finaleDamageAll(state: BattleState, damage: number, logs: string[], label: string, statusId?: StatusId): BattleState {
+  const hitIds: string[] = [];
+  let workingState = state;
+  const fighters = state.fighters.map(fighter => {
+    if (fighter.hp <= 0) return fighter;
+    const result = applyDamageToFighter(fighter, damage);
+    const after = afterFighterDamaged(workingState, result.fighter, logs);
+    workingState = after.state;
+    hitIds.push(fighter.character.id);
+    return result.blocked || !statusId ? after.fighter : { ...after.fighter, statuses: addOrRefreshStatus(after.fighter.statuses, makeStatus(statusId)) };
+  });
+  logs.push(`${label}：全体受到压力。`);
+  return { ...workingState, fighters, recentHitIds: hitIds };
+}
+
+function finaleGodStrike(state: BattleState, unit: EnemyUnitState, logs: string[]): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const damage = 2 + (getStatusStacks(unit.statuses, "damageBoost") > 0 ? 1 : 0);
+  const result = applyDamageToFighter(target, damage);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  const statusId = Math.random() < 0.5 ? "daze" : "wound";
+  const statuses = result.blocked ? after.fighter.statuses : addOrRefreshStatus(after.fighter.statuses, makeStatus(statusId));
+  logs.push(`溺神残响凝视 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害并附加${statusText[statusId]}`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? { ...after.fighter, statuses } : fighter),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function finaleGodJudgement(state: BattleState, unit: EnemyUnitState, logs: string[]): BattleState {
+  let next = finaleDamageAll(state, 2 + (getStatusStacks(unit.statuses, "damageBoost") > 0 ? 1 : 0), logs, "溺神残响释放沉没福音", "weak");
+  next = {
+    ...next,
+    fighters: next.fighters.map(fighter =>
+      fighter.hp > 0
+        ? { ...fighter, statuses: addOrRefreshStatus(addOrRefreshStatus(fighter.statuses, makeStatus("wound")), makeStatus("uncontrolled", { duration: 1 })) }
+        : fighter,
+    ),
+    enemyUnits: next.enemyUnits.map(enemy => enemy.id === unit.id ? { ...enemy, statuses: removeSpecificStatus(enemy.statuses, "charge") } : enemy),
+  };
+  logs.push("沉没福音附加虚弱、重伤与短暂失控。");
+  return next;
+}
+
+function runHunterWolfEnemyTurn(state: BattleState): BattleState {
+  let next = syncAggregateBoss({ ...state, phase: "enemy" as Phase });
+  const logs: string[] = ["敌方回合开始：蚀月铠猎与坟狼逼近调查队。"];
+  const hunter = next.enemyUnits.find(unit => unit.id === "boss4-hunter");
+  const wolf = next.enemyUnits.find(unit => unit.id === "boss4-wolf");
+  const hunterAlive = !!hunter && hunter.hp > 0;
+  const wolfAlive = !!wolf && wolf.hp > 0;
+  const turnBerserk = next.turn >= 5 && hunterAlive && wolfAlive;
+  const wolfBerserk = wolfAlive && (!hunterAlive || turnBerserk);
+
+  if (!hunterAlive && !wolfAlive) {
+    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: "赤月沉入城垣，猎场终于重新打开。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+  }
+
+  if (turnBerserk) {
+    next = {
+      ...next,
+      enemyUnits: next.enemyUnits.map(unit => {
+        if (unit.hp <= 0 || unit.statuses.some(status => status.id === "damageBoost")) return unit;
+        return {
+          ...unit,
+          statuses: addOrRefreshStatus(
+            unit.statuses,
+            makeStatus("damageBoost", {
+              name: "赤月狂暴",
+              description: "第五回合后双单位仍存活，造成伤害提高。猎人蓄力不再被伤害打断，坟狼蓄力不再被控制打断。",
+            }),
+          ),
+        };
+      }),
+    };
+    logs.push("赤月狂暴触发：猎人与坟狼仍然同时存活，攻击性上升。");
+  } else if (wolfBerserk && !wolf?.statuses.some(status => status.id === "damageBoost")) {
+    next = {
+      ...next,
+      enemyUnits: next.enemyUnits.map(unit =>
+        unit.id === "boss4-wolf"
+          ? {
+              ...unit,
+              statuses: addOrRefreshStatus(
+                removeSpecificStatus(unit.statuses, "charge"),
+                makeStatus("damageBoost", {
+                  name: "孤狼狂暴",
+                  description: "猎人已被击杀，坟狼不再需要蓄力并提高伤害。",
+                }),
+              ),
+            }
+          : unit,
+      ),
+    };
+    logs.push("孤狼狂暴触发：坟狼不再需要蓄力。");
+  }
+
+  for (const unit of next.enemyUnits) {
+    const current = next.enemyUnits.find(enemy => enemy.id === unit.id);
+    if (!current || current.hp <= 0) continue;
+
+    const controlLocked = current.id === "boss4-wolf" && next.turn >= 5;
+    if (!controlLocked && current.statuses.some(status => status.id === "coma")) {
+      logs.push(`${current.name} 处于昏迷，跳过行动。`);
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(enemy => enemy.id === current.id ? { ...enemy, statuses: decrementDurations(enemy.statuses) } : enemy),
+      };
+      continue;
+    }
+    if (!controlLocked && current.statuses.some(status => status.id === "uncontrolled") && Math.random() < 0.4) {
+      logs.push(`${current.name} 的失控触发，行动失败。`);
+      next = {
+        ...next,
+        enemyUnits: next.enemyUnits.map(enemy => enemy.id === current.id ? { ...enemy, statuses: decrementDurations(enemy.statuses) } : enemy),
+      };
+      continue;
+    }
+
+    const charge = current.statuses.find(status => status.id === "charge");
+    if (charge) {
+      next = current.id === "boss4-hunter"
+        ? releaseHunterExecution(next, current, logs)
+        : releaseWolfHowl(next, current, logs, getStatusStacks(current.statuses, "damageBoost") > 0);
+      continue;
+    }
+
+    const enraged = getStatusStacks(current.statuses, "damageBoost") > 0;
+    if (current.id === "boss4-hunter") {
+      if (Math.random() < (enraged ? 0.55 : 0.38)) {
+        next = {
+          ...next,
+          enemyUnits: next.enemyUnits.map(enemy =>
+            enemy.id === current.id
+              ? { ...enemy, statuses: addOrRefreshStatus(enemy.statuses, makeStatus("charge", { name: "月蚀处刑", description: "下次行动释放高伤害攻击，附加虚弱与重伤。" })) }
+              : enemy,
+          ),
+        };
+        logs.push("蚀月铠猎开始蓄力：月蚀处刑。");
+      } else {
+        next = hunterBasicAttack(next, current, logs, enraged);
+      }
+    } else if (current.id === "boss4-wolf") {
+      if (wolfBerserk || enraged) {
+        next = releaseWolfHowl(next, current, logs, true);
+      } else if (Math.random() < 0.42) {
+        next = {
+          ...next,
+          enemyUnits: next.enemyUnits.map(enemy =>
+            enemy.id === current.id
+              ? { ...enemy, statuses: addOrRefreshStatus(enemy.statuses, makeStatus("charge", { name: "赤月群嚎", description: "下次行动对全体造成伤害并附加流血。" })) }
+              : enemy,
+          ),
+        };
+        logs.push("坟狼开始蓄力：赤月群嚎。");
+      } else {
+        next = wolfBite(next, current, logs, false);
+      }
+    }
+  }
+
+  next = {
+    ...next,
+    enemyUnits: next.enemyUnits.map(unit => ({
+      ...unit,
+      statuses: decrementDurations(unit.statuses),
+    })),
+  };
+
+  if (next.fighters.every(fighter => fighter.hp <= 0)) {
+    return { ...syncAggregateBoss(next), phase: "defeat", finaleLine: "赤月没有落下，只是换了一批猎物。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+  }
+
+  return startPlayerTurn({ ...syncAggregateBoss(next), log: [...logs, ...next.log].slice(0, LOG_LIMIT) });
+}
+
+function hunterBasicAttack(state: BattleState, unit: EnemyUnitState, logs: string[], enraged: boolean): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const damage = 2 + (enraged ? 1 : 0);
+  const result = applyDamageToFighter(target, damage);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  logs.push(`${unit.name} 挥动断罪重斧命中 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? after.fighter : fighter),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function releaseHunterExecution(state: BattleState, unit: EnemyUnitState, logs: string[]): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const enraged = getStatusStacks(unit.statuses, "damageBoost") > 0;
+  const damage = 3 + (enraged ? 1 : 0);
+  const result = applyDamageToFighter(target, damage);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  const statuses = result.blocked
+    ? after.fighter.statuses
+    : addOrRefreshStatus(addOrRefreshStatus(after.fighter.statuses, makeStatus("weak")), makeStatus("wound"));
+  logs.push(`${unit.name} 释放「月蚀处刑」命中 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害并附加虚弱、重伤`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? { ...after.fighter, statuses } : fighter),
+    enemyUnits: after.state.enemyUnits.map(enemy => enemy.id === unit.id ? { ...enemy, statuses: removeSpecificStatus(enemy.statuses, "charge") } : enemy),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function wolfBite(state: BattleState, unit: EnemyUnitState, logs: string[], enraged: boolean): BattleState {
+  const targetIndex = randomAliveIndex(state.fighters);
+  const target = state.fighters[targetIndex];
+  if (!target || target.hp <= 0) return state;
+  const damage = 1 + (enraged ? 1 : 0);
+  const result = applyDamageToFighter(target, damage);
+  const after = afterFighterDamaged(state, result.fighter, logs);
+  const statuses = result.blocked ? after.fighter.statuses : addOrRefreshStatus(after.fighter.statuses, makeStatus("bleed"));
+  logs.push(`${unit.name} 撕咬 ${target.character.name}${result.blocked ? "，护盾抵消了伤害" : `，造成 ${result.damage} 点伤害并附加流血`}。`);
+  return {
+    ...after.state,
+    fighters: after.state.fighters.map((fighter, index) => index === targetIndex ? { ...after.fighter, statuses } : fighter),
+    recentHitIds: [...new Set([...after.state.recentHitIds, target.character.id])],
+  };
+}
+
+function releaseWolfHowl(state: BattleState, unit: EnemyUnitState, logs: string[], enraged: boolean): BattleState {
+  const hitIds: string[] = [];
+  const summaries: string[] = [];
+  let workingState = state;
+  const fighters = state.fighters.map(fighter => {
+    if (fighter.hp <= 0) return fighter;
+    const result = applyDamageToFighter(fighter, 1 + (enraged ? 1 : 0));
+    const after = afterFighterDamaged(workingState, result.fighter, logs);
+    workingState = after.state;
+    hitIds.push(fighter.character.id);
+    summaries.push(result.blocked ? `${fighter.character.name} 的护盾抵消了伤害` : `${fighter.character.name} 受到 ${result.damage} 点伤害并获得流血`);
+    return result.blocked ? after.fighter : { ...after.fighter, statuses: addOrRefreshStatus(after.fighter.statuses, makeStatus("bleed")) };
+  });
+  logs.push(`${unit.name} 释放「赤月群嚎」：${summaries.join("；")}。`);
+  return {
+    ...workingState,
+    fighters,
+    enemyUnits: workingState.enemyUnits.map(enemy => enemy.id === unit.id ? { ...enemy, statuses: removeSpecificStatus(enemy.statuses, "charge") } : enemy),
+    recentHitIds: hitIds,
+  };
 }
 
 function randomAliveIndex(fighters: Fighter[]): number {
@@ -2575,7 +3269,7 @@ function startPlayerTurn(state: BattleState): BattleState {
     ...state,
     turn: state.turn + 1,
     energy: Math.min(state.maxEnergy, state.energy + 4 + extraEnergy + scavengerEnergy),
-    maxHand: state.maxHand + extraHand,
+    maxHand: getBaseMaxHand(processedFighters.map(fighter => fighter.character)) + extraHand,
     phase: "player",
     fighters: processedFighters,
     zidianCount: 0,
@@ -2583,7 +3277,7 @@ function startPlayerTurn(state: BattleState): BattleState {
     playedThisTurn: [],
     playedSkillNames: [],
     boss: { ...state.boss, crownCooldown: Math.max(0, state.boss.crownCooldown - 1) },
-    log: logs.length ? [...logs, ...state.log].slice(0, 14) : state.log,
+    log: logs.length ? [...logs, ...state.log].slice(0, LOG_LIMIT) : state.log,
   };
 
   if (processedFighters.every(fighter => fighter.hp <= 0)) {
@@ -2904,7 +3598,7 @@ function BattleCardButton({
       onFocus={() => onHover(card)}
       onBlur={() => onHover(null)}
       whileTap={!disabled ? { scale: 0.96 } : undefined}
-      className={`group grid h-[138px] grid-rows-[minmax(0,1fr)_54px] overflow-hidden border bg-black/60 text-left transition ${
+      className={`group grid h-[124px] grid-rows-[minmax(0,1fr)_48px] overflow-hidden border bg-black/60 text-left transition ${
         disabled
           ? "border-white/10 opacity-45"
           : selected
@@ -2914,16 +3608,15 @@ function BattleCardButton({
     >
       <div className="relative overflow-hidden">
         <img src={icon} alt={card.skill.name} className="h-full w-full object-cover transition group-hover:scale-105" />
-        <div className="absolute left-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-yellow-300 text-sm font-black text-black">{cost}</div>
+        <div className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-300 text-xs font-black text-black">{cost}</div>
       </div>
-      <div className="grid grid-cols-[38px_1fr] items-center gap-2 border-t border-primary/30 bg-[#10091b] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-        <div className="flex h-10 w-10 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
+      <div className="grid grid-cols-[34px_1fr] items-center gap-1.5 border-t border-primary/30 bg-[#10091b] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <div className="flex h-8 w-8 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
           <img src={card.ownerAvatar} alt={card.ownerName} className="max-h-full max-w-full object-contain" />
         </div>
         <div className="min-w-0 leading-tight">
-          <div className="truncate text-xs font-black text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.55)]">{card.skill.name}</div>
+          <div className="truncate text-[11px] font-black text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.55)]">{card.skill.name}</div>
           <div className="mt-0.5 truncate text-[10px] font-bold text-primary">{card.ownerName}</div>
-          <div className="mt-0.5 truncate text-[10px] text-white/55">{card.skill.type}</div>
         </div>
       </div>
     </motion.button>
@@ -2958,12 +3651,178 @@ function InfoTile({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+const clearReportDetails: Record<string, { action: string; combat: string; result: string; loss: string; note: string }> = {
+  "boss-01": {
+    action:
+      "调查队第七小队已于 ██ 时进入目标区域，对异常源进行定位与围剿。目标具备中等范围精神干扰与环境侵蚀能力，可通过花状组织释放孢体，对周边时序稳定性造成持续扰动。进入区域后，稳定装置记录到多次低频脉冲，目标核心位置与废弃结构群中心重合。",
+    combat:
+      "行动过程中，小队遭遇异常精神方面的干扰，并出现短时感知偏移与记忆错位现象。目标在交战中释放花状孢体与骨面幻象，试图分割前线单位并拖慢压制节奏。经稳定装置介入后，小队恢复基础协同，完成对主体外层结构的剥离，并对核心进行集中打击。",
+    result:
+      "异常体已失活，核心结构成功回收并编号封存。区域扭曲指数下降至安全阈值以下，现场残留的花状组织已由后勤组焚毁处理。",
+    loss: "轻伤 ██ 人（已稳定），装备损毁率约 18%，阵亡 ██ 人。",
+    note:
+      "该异常疑似与高阶“时间阴影”存在关联，失活后仍残留微弱波形反应。建议提升同类事件响应等级，并在后续废弃结构群行动中优先部署精神干扰隔离装置。",
+  },
+  "boss-02": {
+    action:
+      "调查队第七小队于 ██ 时进入旧交通节点残骸区外围，对持续活动的双体异常进行追踪与封锁。目标表现为高度同步的双个体结构，具备近战高速机动能力与短距离位相错位特性，可在极短时间内完成攻击路径重构。环境受其影响出现轻度空间折叠与路径误导现象。",
+    combat:
+      "接敌后，异常体迅速展开协同攻击。两目标间存在明显“共生”机制，可共享受击反馈并进行伤害转移，导致常规压制手段效果削弱。交战中段，小队成员出现短时判断延迟与攻击落空现象，疑似受其位相偏移能力影响。通过分割战术与同步干扰装置介入，小队成功打断其协同节奏，将两目标强制分离。最终由前线单位完成近距离压制，双目标相继失去行动能力。",
+    result:
+      "异常体“双生刃鬼”已确认失活，双核心结构完成回收并分别封存。现场残留的空间扰动已趋于稳定，区域威胁等级下降至可控范围。",
+    loss: "轻伤 ██ 人（均已脱离危险），中度损伤装备若干，约 21% 需更换，阵亡 ██ 人。",
+    note:
+      "目标在失活前仍保持微弱同步反应，个体间连接未完全断裂。部分成员报告称在接近时产生“重影感”与短暂时间错位体验。该现象已记录并移交研究组。",
+  },
+  "boss-03": {
+    action:
+      "调查队第七小队于 ██ 时进入黑林拘束域，对异常个体进行定位与清除。目标以“拟态人形 + 伴生兽”形式存在，具备领域性精神侵蚀与环境同化能力，可通过悬挂遗体、符链与紫色结晶构建“仪式场”，持续强化自身存在稳定度。",
+    combat:
+      "小队进入林区后即受到视觉与听觉干扰，多名成员报告出现“重复月相”与“个体数量异常增殖”等认知偏差。目标在战斗中通过伴生兽进行牵制，并释放低强度精神压迫波动。稳定装置启动后，小队恢复基础协同能力，采取分散压制与核心锁定策略，对主体进行围剿。伴生兽被优先击杀，随后完成对异常个体的致命打击。",
+    result:
+      "异常体已确认失活，核心结构（黑羽冠饰及结晶节点）已完成回收并封存。现场“仪式场”结构崩解，紫色能量反应显著衰减，区域扭曲指数恢复至可控范围。",
+    loss: "轻伤 ██ 人（已稳定），精神污染迹象 ██ 例（均已隔离观察），装备损毁率约 22%，阵亡 ██ 人。",
+    note:
+      "该异常具备明显“仪式构筑”特征，疑似通过环境叠加强化自身存在层级。其能量波形与已记录“时间阴影”存在部分重合，推测为其衍生或低阶映射体。建议后续进入同类林地环境时，优先部署高规格稳定装置，并限制单点停留时间。",
+  },
+  "boss-04": {
+    action:
+      "调查队第七小队于 ██ 时进入目标区域，对异常个体进行定位与清除。目标以“重装人形主体 + 伴生兽”形式存在，主体持有大型斧戟类武器，具备高强度近战压制能力；伴生兽表现为巨狼形态，可配合主体进行侧翼突袭与牵制。目标活动区域存在赤色能量沉积，并对周边空间稳定性造成持续扰动。",
+    combat:
+      "接敌后，目标迅速展开正面压制。主体通过重型武器发动大范围攻击，伴生兽从侧翼进行高速扑击，迫使小队队形多次调整。交战中，小队记录到主体与伴生兽之间存在同步反应，一方受创时，另一方行动强度会短暂提升。稳定装置启动后，赤色能量波动被削弱。小队采取分割战术，优先压制伴生兽，随后集中火力攻击主体。伴生兽失去行动能力后，主体行动明显迟缓，最终被前线单位合围击倒。",
+    result:
+      "异常体“断蚀骑兽”已确认失活。主体核心结构与伴生兽颈部链式核心已完成回收并分别封存。大型斧戟残留有赤蚀反应，已作为危险遗物转交研究组处理。现场能量场明显衰减，区域扭曲指数下降至可控范围。",
+    loss: "轻伤 ██ 人（已稳定），中度伤 ██ 人，装备损毁率约 24%，阵亡 ██ 人。",
+    note:
+      "该异常具备明显“守卫”特征，活动范围长期固定于旧王城遗址外围，疑似与遗址封锁机制有关。目标能量波形与已记录“时间阴影”存在部分重合，但污染性质更偏向赤蚀残响。建议后续遭遇同类“人形主体 + 伴生兽”结构时，优先切断二者同步关系，并避免正面持久战。",
+  },
+};
+
 function ResultOverlay({ phase, line, onRestart }: { phase: Phase; line: string; onRestart: () => void }) {
   const victory = phase === "victory";
+  const report = bossClearStories[currentBoss.id]?.[0];
+  const reportDetail = clearReportDetails[currentBoss.id];
+  const resultImage = victory ? report?.image ?? currentBoss.defeatImage ?? currentBoss.image : currentBoss.image;
+  const reportRows = [
+    ["档案编号", report?.label ?? currentBoss.codename],
+    ["异常编号", currentBoss.codename],
+    ["目标区域", currentBoss.habitat],
+    ["异常等级", currentBoss.threatLevel],
+    ["分类", currentBoss.classification],
+    ["封存状态", victory ? "已压制 / 核心回收" : "行动失败 / 威胁延续"],
+  ];
+  const actionSummary = reportDetail?.action ?? currentBoss.description;
+  const combatSummary = reportDetail?.combat ?? currentBoss.backgroundStory;
+  const resultSummary = reportDetail?.result ?? report?.body ?? "异常体已确认失活，核心结构已完成回收并封存。";
+  const lossSummary = reportDetail?.loss ?? "轻伤 ██ 人（已稳定），装备损毁率待复核，阵亡 ██ 人。";
+  const noteSummary = reportDetail?.note ?? currentBoss.warning;
+
+  if (victory) {
+    return (
+      <div className="fixed inset-0 isolate bg-black" style={{ zIndex: 9999, opacity: 1, backgroundColor: "#000" }}>
+        <img src={resultImage} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: 1 }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/25 via-black/15 to-black/85" />
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/80 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 to-transparent" />
+
+        <section className="absolute bottom-8 left-8 max-w-[58vw] text-white">
+          <div className="mb-3 inline-flex items-center gap-2 border border-primary/50 bg-black/55 px-3 py-2 text-xs font-bold tracking-[0.32em] text-primary">
+            <Sparkles className="h-4 w-4" />
+            BOSS DEFEATED
+          </div>
+          <h2 className="text-5xl font-black drop-shadow-[0_0_22px_rgba(0,0,0,0.9)]">战斗胜利</h2>
+          <p className="mt-4 max-w-2xl border-l-4 border-primary bg-black/45 px-5 py-3 font-serif text-xl italic leading-relaxed text-white/88">
+            "{line}"
+          </p>
+        </section>
+
+        <aside className="absolute right-6 top-6 flex h-[calc(100vh-48px)] w-[39vw] min-w-[560px] max-w-[720px] flex-col border border-[#d8c7a6]/45 bg-[#1b1720]/92 text-[#efe6d2] shadow-[0_0_50px_rgba(0,0,0,0.75)] backdrop-blur-md">
+          <div className="grid grid-cols-[minmax(170px,0.7fr)_minmax(310px,1.3fr)] gap-5 border-b border-[#d8c7a6]/30 bg-[#2b2131]/82 px-6 py-5">
+            <div>
+              <div className="text-[11px] font-bold tracking-[0.32em] text-[#c590ff]">ARK FIELD ARCHIVE</div>
+              <h3 className="mt-2 text-3xl font-black text-[#fff8e8]">{report?.title ?? currentBoss.name}</h3>
+              <div className="mt-2 text-xs tracking-[0.22em] text-[#d8c7a6]/70">{currentBoss.name} / CLEAR REPORT</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {reportRows.map(([label, value]) => (
+                <div key={label} className="border border-[#d8c7a6]/25 bg-[#f2e4c8]/8 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                  <div className="text-[9px] font-bold tracking-[0.18em] text-[#d8c7a6]/62">{label}</div>
+                  <div className="mt-1 text-[12px] font-black leading-snug text-[#fff8e8]/92">{value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,rgba(255,248,232,0.055),rgba(255,248,232,0.018))] px-6 py-5">
+            <div className="space-y-3 border border-[#b85a52]/70 bg-[#251817]/72 p-4 shadow-[0_0_22px_rgba(184,90,82,0.08)]">
+              <div>
+                <div className="mb-2 flex items-center justify-between border-b border-[#b85a52]/35 pb-1 text-[11px] font-bold tracking-[0.28em] text-[#ffb0a8]">
+                  <span>行动概述</span>
+                  <span className="font-mono tracking-[0.18em] text-[#ffb0a8]/45">SECTION 01</span>
+                </div>
+                <p className="text-sm leading-loose text-[#efe6d2]/86">{actionSummary}</p>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between border-b border-[#b85a52]/35 pb-1 text-[11px] font-bold tracking-[0.28em] text-[#ffb0a8]">
+                  <span>交战情况</span>
+                  <span className="font-mono tracking-[0.18em] text-[#ffb0a8]/45">SECTION 02</span>
+                </div>
+                <p className="text-sm leading-loose text-[#efe6d2]/86">{combatSummary}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-3 border border-[#55b6d8]/80 bg-[#10202a]/72 p-4 shadow-[0_0_22px_rgba(85,182,216,0.08)]">
+              <div>
+                <div className="mb-2 flex items-center justify-between border-b border-[#55b6d8]/35 pb-1 text-[11px] font-bold tracking-[0.28em] text-[#9ee7ff]">
+                  <span>结果</span>
+                  <span className="font-mono tracking-[0.18em] text-[#9ee7ff]/45">RESULT</span>
+                </div>
+                <p className="text-sm leading-loose text-[#efe6d2]/86">{resultSummary}</p>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between border-b border-[#55b6d8]/35 pb-1 text-[11px] font-bold tracking-[0.28em] text-[#9ee7ff]">
+                  <span>损失情况</span>
+                  <span className="font-mono tracking-[0.18em] text-[#9ee7ff]/45">LOSS</span>
+                </div>
+                <p className="text-sm leading-relaxed text-[#efe6d2]/86">{lossSummary}</p>
+              </div>
+              <div>
+                <div className="mb-2 flex items-center justify-between border-b border-[#55b6d8]/35 pb-1 text-[11px] font-bold tracking-[0.28em] text-[#9ee7ff]">
+                  <span>备注</span>
+                  <span className="font-mono tracking-[0.18em] text-[#9ee7ff]/45">NOTE</span>
+                </div>
+                <p className="text-sm leading-loose text-[#efe6d2]/86">{noteSummary}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 border-t border-[#d8c7a6]/25 bg-[#100d14]/78 p-4">
+            <Button onClick={onRestart} className="rounded-none bg-primary hover:bg-primary/80">
+              <RotateCcw className="mr-2 h-4 w-4" />
+              再战一次
+            </Button>
+            <Button asChild className="rounded-none bg-white text-black hover:bg-white/85">
+              <Link href="/epilogue">
+                <Sparkles className="mr-2 h-4 w-4" />
+                战后剧情
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="rounded-none border-white/20 bg-transparent text-white">
+              <Link href="/team">
+                <Swords className="mr-2 h-4 w-4" />
+                返回编队
+              </Link>
+            </Button>
+          </div>
+        </aside>
+      </div>
+    );
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-8">
       <div className="grid w-full max-w-5xl grid-cols-[1.2fr_0.8fr] overflow-hidden border border-white/15 bg-[#0c0712]">
-        <img src={victory ? currentBoss.defeatImage ?? currentBoss.image : currentBoss.image} alt="" className="h-[560px] w-full object-cover" />
+        <img src={resultImage} alt="" className="h-[560px] w-full object-cover" />
         <div className="flex flex-col justify-center p-10">
           <div className="mb-3 flex items-center gap-2 text-sm tracking-[0.25em] text-primary">
             <Sparkles className="h-4 w-4" />

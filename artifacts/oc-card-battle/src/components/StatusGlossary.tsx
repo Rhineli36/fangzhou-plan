@@ -121,8 +121,10 @@ export function SkillDiscardHint({ skill, className }: { skill: Skill; className
 
 function getDiscardHint(skill: Skill): string | null {
   const text = [skill.name, skill.description, skill.effect, skill.upgrade].join("\n");
+  if (skill.name === "时序修复") return "主动弃置时，有 50% 几率恢复 1 点能量。";
   if (!text.includes("弃") && !text.includes("丢弃") && !text.includes("放弃")) return null;
   if (skill.name === "念念不忘") return "获得 1 点能量，并生成 1 层记忆检索。";
+  if (skill.name === "铲尖猛击") return "获得 1 张应急储备。";
   if (skill.name === "绝境应激") return "自身获得恢复，同时承受虚弱，适合在需要续航时主动处理。";
   if (skill.name === "时序祷言") return "结算时会弃置手牌中的时祀牌，每弃 1 张，全体恢复 1 点生命。";
   if (skill.name === "星辰律动") return "若手中有命运折射，会弃置 1 张命运折射，为目标追加 1 层护盾。";

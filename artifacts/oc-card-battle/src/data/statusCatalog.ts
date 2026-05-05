@@ -164,7 +164,7 @@ export const statusCatalog: StatusDefinition[] = [
     kind: "增益",
     icon: regenIcon,
     short: "降低费用并在造成伤害后回复。",
-    description: "目标本回合卡牌费用降低。目标造成伤害后，莉拉和目标同时回复生命。",
+    description: "目标卡牌费用降低。目标造成伤害后，莉拉和目标同时回复生命，持续 3 回合。",
   },
   {
     id: "overload",

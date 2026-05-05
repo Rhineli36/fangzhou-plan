@@ -7,13 +7,17 @@ import epilogueThree from "@assets/story_epilogue_3.png";
 import boss1ClearCg from "@assets/boss1_clear_cg.png";
 import boss2ClearCg from "@assets/boss2_clear_cg.png";
 import boss3ClearCg from "@assets/boss3_clear_cg.png";
+import boss4ClearCg from "@assets/boss4_clear_cg.png";
 
 export interface StorySlide {
   label: string;
   title: string;
   image: string;
+  foregroundImage?: string;
   body: string;
 }
+
+export const epilogueHopeImage = epilogueThree;
 
 export const prologueSlides: StorySlide[] = [
   {
@@ -45,7 +49,7 @@ export const epilogueSlides: StorySlide[] = [
     title: "战斗之后",
     image: epilogueOne,
     body:
-      "第一次调查行动结束后，方舟并没有立刻迎来安宁。伤员被送回医疗区，工程组重新接入被震断的能源管线，记录员在残缺的数据里反复校对战场报告。胜利只是暂时推开了黑雾的一角，城市仍在修补，钟楼仍在低鸣，而每一个从战场归来的人，都比出发时更清楚：这场灾难远没有结束。",
+      "邪神之灾结束后，方舟并没有立刻迎来安宁。伤员被送回医疗区，工程组重新接入被震断的能源管线，记录员在残缺的数据里反复校对战场报告。胜利只是暂时推开了黑雾的一角，城市仍在修补，钟楼仍在低鸣，而每一个从战场归来的人，都比出发时更清楚：这场灾难远没有结束。",
   },
   {
     label: "EPILOGUE 02",
@@ -89,6 +93,15 @@ export const bossClearStories: Record<string, StorySlide[]> = {
       image: boss3ClearCg,
       body:
         "第七小队完成对黑林拘束域内 EVE-CROW 的清除。目标以拟态人形与伴生兽形式存在，通过悬挂遗体、符链和紫色结晶构筑仪式场，持续强化自身存在稳定度。行动中队员出现重复月相、个体数量异常增殖等认知偏差；伴生兽被优先击杀后，主体显形并被围剿。黑羽冠饰与结晶节点已回收，林地紫色能量反应显著衰减。",
+    },
+  ],
+  "boss-04": [
+    {
+      label: "ARK-INV-██-11 / CLEAR REPORT",
+      title: "断蚀骑兽封存",
+      image: boss4ClearCg,
+      body:
+        "目标区域：扭曲之地·赤蚀旧王城遗址。异常编号：EVE-WARDEN（暂定命名：断蚀骑兽）。调查队第七小队于 ██ 时进入目标区域，对异常个体进行定位与清除。目标以“重装人形主体 + 伴生兽”形式存在，主体持有大型斧戟类武器，具备高强度近战压制能力；伴生兽表现为巨狼形态，可配合主体进行侧翼突袭与牵制。目标活动区域存在赤色能量沉积，并对周边空间稳定性造成持续扰动。接敌后，主体通过重型武器发动大范围攻击，伴生兽从侧翼进行高速扑击，迫使小队队形多次调整。交战中记录到主体与伴生兽之间存在同步反应，一方受创时，另一方行动强度会短暂提升。稳定装置启动后，赤色能量波动被削弱。小队采取分割战术，优先压制伴生兽，随后集中火力攻击主体。异常体已确认失活，主体核心结构与伴生兽颈部链式核心已完成回收并分别封存。大型斧戟残留有赤蚀反应，已作为危险遗物转交研究组处理。现场能量场明显衰减，区域扭曲指数下降至可控范围。",
     },
   ],
 };

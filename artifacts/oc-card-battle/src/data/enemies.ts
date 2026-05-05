@@ -15,6 +15,16 @@ import boss2Compensation from "@assets/boss2_compensation.png";
 import boss3Background from "@assets/boss3_background.png";
 import boss3CastImage from "@assets/boss3_cast.png";
 import boss3DefeatImage from "@assets/boss3_defeat.png";
+import boss4Background from "@assets/boss4_background.png";
+import boss4DefeatImage from "@assets/boss4_defeat.png";
+import boss4HunterBerserk from "@assets/boss4_hunter_berserk.png";
+import boss4WolfBerserk from "@assets/boss4_wolf_berserk.png";
+import boss5Phase1 from "@assets/boss5_phase1.png";
+import boss5Phase1Berserk from "@assets/boss5_phase1_berserk.png";
+import boss5Phase1Defeated from "@assets/boss5_phase1_defeated.png";
+import boss5Phase2 from "@assets/boss5_phase2.png";
+import boss5Serpent from "@assets/boss5_serpent.png";
+import boss5GodBerserk from "@assets/boss5_god_berserk.png";
 
 export type EnemyTier = '杂兵' | '精英' | '首领' | '终焉';
 
@@ -47,7 +57,7 @@ export interface Enemy {
   weakness: string;
   warning: string;
   image: string;
-  encounterType?: "single" | "twin" | "summoner";
+  encounterType?: "single" | "twin" | "summoner" | "hunterWolf" | "finale";
   berserkImage?: string;
   flowerBurialImage?: string;
   defeatImage?: string;
@@ -146,7 +156,7 @@ export const enemies: Enemy[] = [
     abilities: [
       {
         name: "同步偏移",
-        description: "苍契存在时，两体行动有约 0.3 秒的偏移，攻击难以被闪避或打断；苍契死亡或昏迷时，该天赋失效。",
+        description: "苍契存在时，两体行动有约 0.3 秒的偏移，攻击难以被闪避或打断；苍契死亡或昏迷时，该天赋失效。苍契存活时，每 3 回合会为两体各驱散 1 层减益。",
         threat: "高",
       },
       {
@@ -232,7 +242,7 @@ export const enemies: Enemy[] = [
       },
       {
         name: "林间回生",
-        description: "生命低于一半时，鸦月织影会短暂回复生命并获得恢复。治疗不高，但会拖长战斗节奏。",
+        description: "生命低于一半时，鸦月织影会短暂回复生命、获得恢复，并驱散自身 1 层减益。治疗不高，但会拖长战斗节奏。",
         threat: "中",
       },
     ],
@@ -272,10 +282,189 @@ export const enemies: Enemy[] = [
         id: "boss3-wolf",
         name: "影狼",
         title: "召唤物 · 低血量",
-        hp: 6,
+        hp: 4,
         image: boss3CastImage,
         portrait: boss3CastImage,
         blade: "blue",
+        startsActive: false,
+      },
+    ],
+  }
+  ,
+  {
+    id: "boss-04",
+    name: "蚀月铠猎",
+    title: "黑月下的猎人与狼",
+    codename: 'B.I.F. No. BOSS-04 / "ECLIPSE HUNTER & GRAVEWOLF"',
+    tier: "首领",
+    hp: 34,
+    threatLevel: "5 级 / 双单位狂暴型",
+    classification: "高危突变体 · 伴生兽契约类",
+    habitat: "赤月城垣 · 断桥祭坛",
+    description: "披甲猎人和伴生巨狼共同守在赤月城垣深处。猎人以重斧压制阵线，狼则撕咬伤口并拖长流血；若战斗拖到第五回合，两者会同时进入狂暴。",
+    backgroundStory:
+      "赤月城垣原本是一处旧时代军事要塞，灾变后被黑雾与月蚀现象长期覆盖。巡逻记录显示，城垣深处反复出现一名戴银面具的重甲男性，与一只披挂荆棘骨链的灰狼同行。两者并非主从，而像共享同一个战斗意志：猎人负责审判入侵者，狼负责确认猎物是否仍在呼吸。\n\nB.I.F. 将其记为“蚀月铠猎”。目标似乎保留了某种古老骑士誓约的残片，却只剩下执行命令的空壳。每当赤月完全压过云层，猎人与狼都会进入不可逆的狂暴，城垣内的黑雾指数随之急剧升高。",
+    abilities: [
+      {
+        name: "断罪重斧",
+        description: "猎人的常规攻击。对单体造成较高伤害；蓄力后释放月蚀处刑，造成伤害并附加虚弱与重伤。第五回合后，猎人的蓄力不再能被伤害打断，只能被控制打断。",
+        threat: "高",
+      },
+      {
+        name: "坟狼撕咬",
+        description: "巨狼的常规攻击。对单体造成伤害并附加流血；蓄力后释放赤月群嚎，对全体造成伤害并附加流血。第五回合后，狼免疫控制打断，但仍可被伤害打断。",
+        threat: "高",
+      },
+      {
+        name: "赤月狂暴",
+        description: "第五回合后若猎人与狼均未被击杀，两者同时狂暴并提高伤害。若猎人先被击杀，巨狼立刻狂暴，技能不再需要蓄力。",
+        threat: "致命",
+      },
+    ],
+    mechanics: [
+      {
+        name: "双目标压制",
+        description: "战斗中同时存在猎人与坟狼。猎人输出更高，狼生命更高并持续施加流血；建议根据队伍爆发与净化能力决定先处理哪一方。",
+      },
+      {
+        name: "蓄力打断",
+        description: "猎人与狼都会进入蓄力。狂暴前，伤害或控制都可以打断；第五回合后，猎人只能被控制打断，狼只能被伤害打断。",
+      },
+      {
+        name: "孤狼狂暴",
+        description: "猎人先被击杀时，坟狼获得狂暴，后续行动不再需要蓄力并提高伤害。若战斗拖到第五回合，两者都会获得狂暴。",
+      },
+    ],
+    strategyTips: [
+      "队伍缺少净化时，优先压低坟狼血量，避免流血层数失控。",
+      "拥有昏迷、失控或高爆发伤害的队伍，可以在蓄力窗口稳定打断关键技能。",
+      "第五回合后打断规则会改变，不要把所有资源压在同一种打断方式上。",
+      "若选择先击杀猎人，需要准备承受坟狼狂暴后的连续高压。"
+    ],
+    weakness: "两者蓄力时动作会短暂停滞。根据狂暴阶段选择伤害打断或控制打断，是降低团队损耗的关键。",
+    warning: "严禁在赤月完全升起后继续滞留。记录显示，听见第二次狼嚎后，调查员会把撤退指令误判为处刑号令。",
+    encounterType: "hunterWolf",
+    image: boss4Background,
+    battleBackground: boss4Background,
+    defeatImage: boss4DefeatImage,
+    berserkImage: boss4HunterBerserk,
+    flowerBurialImage: boss4WolfBerserk,
+    units: [
+      {
+        id: "boss4-hunter",
+        name: "蚀月铠猎",
+        title: "重甲猎人 · 高攻击",
+        hp: 14,
+        image: boss4HunterBerserk,
+        portrait: boss4Background,
+        blade: "red",
+      },
+      {
+        id: "boss4-wolf",
+        name: "坟狼",
+        title: "伴生巨狼 · 高生命",
+        hp: 20,
+        image: boss4WolfBerserk,
+        portrait: boss4Background,
+        blade: "blue",
+      },
+    ],
+  },
+  {
+    id: "boss-05",
+    name: "圣棘之母",
+    title: "终局祷告与蛇翼邪神",
+    codename: 'B.I.F. No. BOSS-05 / "MOTHER OF THORNS & THE DROWNED GOD"',
+    tier: "终焉",
+    hp: 50,
+    threatLevel: "6 级 / 双阶段终局型",
+    classification: "终局异常体 · 信仰污染与神格孵化类",
+    habitat: "月蚀修道院 · 破碎圣堂 / 紫潮湖心",
+    description: "白衣修女以祷告维持圣堂内的蛇群与血棘。她倒下后，祷告不会结束，而会把湖底的邪神唤醒。",
+    backgroundStory:
+      "旧修道院曾经收容过第一批黑雾污染者。记录显示，幸存者们将污染称为“启示”，并试图用祷告、圣血与蛇形遗物保存自我。最后一名修女没有逃离圣堂，她把所有人的痛苦缝进同一段祷文里，直到祷文本身开始回应她。\n\nB.I.F. 将第一阶段记为“圣棘之母”，将第二阶段记为“溺神残响”。两者并非主从关系，而像是同一个仪式的前后两次呼吸：先以慈悲拖延死亡，再以神格宣布终局。",
+    abilities: [
+      {
+        name: "圣棘祷疗",
+        description: "一阶段修女会治疗自身或召唤物，并召唤毒蛇施加流血。若场上敌方单位均处于满血，会释放全体伤害并附加虚弱。",
+        threat: "高",
+      },
+      {
+        name: "殉道圣餐",
+        description: "修女生命低于一半后召唤更强大的蛇群怪物，敌方单位获得恢复；修女不再专注治疗，转为更高频率进攻。",
+        threat: "高",
+      },
+      {
+        name: "溺神降临",
+        description: "修女被击败后进入邪神阶段。邪神奇数回合免疫减益，偶数回合强化自身，并通过蓄力技能施加虚弱、恍惚、重伤与失控。",
+        threat: "致命",
+      },
+    ],
+    mechanics: [
+      {
+        name: "双阶段终局",
+        description: "第一阶段击败修女不会立刻胜利，而会开启邪神阶段。建议保留部分手牌与能量应对二阶段的爆发窗口。",
+      },
+      {
+        name: "蛇群压力",
+        description: "毒蛇生命较低但会持续叠加流血；强化蛇群出现后会提高群体压力。清理召唤物能显著降低消耗。",
+      },
+      {
+        name: "奇偶回合",
+        description: "邪神奇数回合免疫减益，双数回合获得攻击提升。控制与标记最好留在双数回合或免疫结束后使用。",
+      },
+    ],
+    strategyTips: [
+      "一阶段不要放任毒蛇长时间存活，否则流血会拖垮队伍。",
+      "修女半血后的强化蛇群压力更高，但她本体治疗频率下降，是推进阶段的窗口。",
+      "二阶段尽量打断邪神蓄力；奇数回合少交关键减益，双数回合集中爆发。",
+    ],
+    weakness: "修女半血后不再稳定治疗自身；邪神蓄力时受到伤害可被打断，是终局战最重要的生存窗口。",
+    warning: "不要把第一阶段的安静误判为胜利。圣堂里真正醒来的东西，在祷告停止之后才会张开眼睛。",
+    encounterType: "finale",
+    image: boss5Phase1,
+    battleBackground: boss5Phase1,
+    defeatImage: boss5Phase1Defeated,
+    berserkImage: boss5GodBerserk,
+    flowerBurialImage: boss5Phase2,
+    units: [
+      {
+        id: "boss5-nun",
+        name: "圣棘之母",
+        title: "一阶段 · 治疗与召唤",
+        hp: 22,
+        image: boss5Phase1,
+        portrait: boss5Phase1Defeated,
+        blade: "red",
+      },
+      {
+        id: "boss5-serpent",
+        name: "毒棘蛇",
+        title: "召唤物 · 流血",
+        hp: 5,
+        image: boss5Serpent,
+        portrait: boss5Serpent,
+        blade: "blue",
+        startsActive: false,
+      },
+      {
+        id: "boss5-horror",
+        name: "圣棘蛇群",
+        title: "强化召唤物 · 群体压力",
+        hp: 8,
+        image: boss5Phase1Berserk,
+        portrait: boss5Serpent,
+        blade: "blue",
+        startsActive: false,
+      },
+      {
+        id: "boss5-god",
+        name: "溺神残响",
+        title: "二阶段 · 邪神",
+        hp: 28,
+        image: boss5Phase2,
+        portrait: boss5GodBerserk,
+        blade: "red",
         startsActive: false,
       },
     ],
@@ -284,6 +473,8 @@ export const enemies: Enemy[] = [
 
 function readStoredBossId(): string | null {
   if (typeof window === "undefined") return null;
+  const previewBoss = new URLSearchParams(window.location.search).get("previewBoss");
+  if (previewBoss) return previewBoss;
   return window.localStorage.getItem("fangzhou-current-boss");
 }
 
