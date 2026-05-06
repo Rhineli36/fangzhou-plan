@@ -883,6 +883,30 @@ function healFighter(fighter: Fighter, amount: number): Fighter {
   return { ...fighter, hp: Math.min(fighter.maxHp, fighter.hp + heal) };
 }
 
+function applyHengwoHealingTalent(beforeFighters: Fighter[], afterFighters: Fighter[], logs: string[]): Fighter[] {
+  const hengwoAlive = afterFighters.some(fighter => fighter.character.creator?.studentId === "12250823" && fighter.hp > 0);
+  if (!hengwoAlive) return afterFighters;
+  return afterFighters.map((fighter, index) => {
+    const before = beforeFighters[index];
+    if (!before || fighter.hp <= before.hp || fighter.hp <= 0) return fighter;
+    let next = fighter;
+    const notes: string[] = [];
+    if (Math.random() < 0.5) {
+      next = { ...next, statuses: addOrRefreshStatus(next.statuses, makeStatus("regen")) };
+      notes.push("获得 1 层恢复");
+    }
+    if (Math.random() < 0.5) {
+      const hp = Math.min(next.maxHp, next.hp + 1);
+      if (hp > next.hp) {
+        next = { ...next, hp };
+        notes.push("额外回复 1 点生命");
+      }
+    }
+    if (notes.length > 0) logs.push(`药息共鸣触发：${fighter.character.name}${notes.join("，")}。`);
+    return next;
+  });
+}
+
 function setFateBookStacks(fighter: Fighter, stacks: number): Fighter {
   const value = Math.max(0, Math.min(15, stacks));
   return {
@@ -1591,12 +1615,20 @@ export default function Battle() {
       }
       next = applyCardPlayedTalents(next, card, logs);
       const beforeBossHp = next.boss.hp;
+      const beforeHealingFighters = next.fighters;
       next = resolveSkill(next, card, logs, false, targetIndex, enemyTargetId);
+      if (card.skill.name !== "逆剂回流") {
+        next = { ...next, fighters: applyHengwoHealingTalent(beforeHealingFighters, next.fighters, logs) };
+      }
 
       const owner = next.fighters.find(f => f.character.id === card.ownerId);
       if (owner?.character.name === "夜·蝶" && Math.random() < 0.3) {
         logs.push("暗影潜行触发：技能再次生效。");
+        const beforeCopiedHealingFighters = next.fighters;
         next = resolveSkill(next, card, logs, true, targetIndex, enemyTargetId);
+        if (card.skill.name !== "逆剂回流") {
+          next = { ...next, fighters: applyHengwoHealingTalent(beforeCopiedHealingFighters, next.fighters, logs) };
+        }
       }
 
       if (next.boss.hp < beforeBossHp) {
@@ -3542,7 +3574,7 @@ function startPlayerTurn(state: BattleState): BattleState {
     };
   });
 
-  let processedFighters = fighters;
+  let processedFighters = applyHengwoHealingTalent(workingState.fighters, fighters, logs);
   if (processedFighters.some(fighter => fighter.character.creator?.studentId === "12250813" && fighter.hp <= 0 && fighter.statuses.some(status => status.id === "lilaReviveUsed"))) {
     processedFighters = processedFighters.map(fighter => {
       const revived = fighter.character.creator?.studentId === "12250813" && fighter.hp <= 0 && fighter.statuses.some(status => status.id === "lilaReviveUsed");

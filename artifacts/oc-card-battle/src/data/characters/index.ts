@@ -1297,6 +1297,7 @@ export const playableCharacterIds = [
   "12250819",
   "12250820",
   "12250821",
+  "12250823",
 ];
 
 export function isCharacterBattleReady(character: Character): boolean {

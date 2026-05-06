@@ -293,11 +293,6 @@ function CharacterTile({ character, viewed, selected, battleReady, onClick }: { 
           </div>
         )}
       </button>
-      {!battleReady && (
-        <div className="mt-1 h-4 truncate text-center text-[9px] font-black tracking-widest text-yellow-100">
-          未实装
-        </div>
-      )}
     </div>
   );
 }
