@@ -1,0 +1,77 @@
+{
+  "submittedAt": "2026-04-30T12:34:51.044Z",
+  "creator": {
+    "name": "沈钇宇",
+    "studentId": "12250814",
+    "class": "2025届设计8班",
+    "avatar": "resources/characters/12250814/creator_avatar.png",
+    "messageToCharacter": "去成为你想成为的人",
+    "proposedGameName": "源起重生"
+  },
+  "character": {
+    "id": "oc-molguw4k",
+    "name": "马特维",
+    "title": "迷魂客",
+    "profession": "异种",
+    "positioning": "控场伤害",
+    "hp": 4,
+    "gender": "女",
+    "age": "不详",
+    "birthday": "7月26日",
+    "zodiac": "巨蟹座",
+    "bloodType": "未知",
+    "linkedCharacters": [],
+    "selectionLine": "你们为何如此执迷不悟？不要来打搅我的世界。",
+    "backgroundStory": "父母为旧时代残党，因后天原因误入扭曲之地，吸入了黑雾，遭到侵蚀失去了左手，其父母为其打造了精钢陶瓷混合义肢，仅可作为自卫装备使用，后父母在扭曲之地失踪后自己改造，加入了掌心炮等攻击装备。因为童年误入扭曲之地被黑雾侵蚀，所有同龄人都刻意远离她，后父母为其打造了合金义肢抑制体内黑雾能量，但在15岁时父母进入扭曲之地寻找材料试图驱散其体内的黑雾能量时失踪，后因为体内黑雾能量不稳定会造成大规模杀伤，被旧时代残党营地驱逐，在扭曲之地搭建了自己的营地。",
+    "extendedBackground": {
+      "origin": "旧时代残党的营地",
+      "family": "父母失踪，无兄弟姐妹，相传有个远房表亲从事于某个调查小队。",
+      "pastExperiences": "误入扭曲之地被黑雾侵蚀",
+      "currentSituation": "在扭曲之地搭建自己的营地独自生活。",
+      "epilogue": "她最后在扭曲之地寻找到了自己父母的遗骸，悲痛交加下黑雾能量暴走，那晚在扭曲之地诞起一道冲天的紫光，那以后人们再也没见过她，那些误入扭曲之地的人们往往会被平安送出，且不受黑雾感染，但多数人已经神志不清，人们认为是受到了马特维的诅咒。",
+      "epilogueIllustration": "resources/characters/12250814/character_extendedBackground_epilogueIllustration.png"
+    },
+    "preferences": {
+      "likes": [
+        "落日的余晖"
+      ],
+      "dislikes": [
+        "满月"
+      ],
+      "favoriteColor": "暗紫",
+      "habits": "坐在营地边眺望",
+      "motto": "无人在意的事情就别问了。"
+    },
+    "passiveSkill": {
+      "name": "吞噬强化",
+      "type": "天赋",
+      "effectDescription": "受击减伤， 伴随普攻重击触发概率30%，暴击扣除目标总血量15%",
+      "characteristic": "在黑雾范围内有效，无视沉默效果",
+      "icon": "resources/characters/12250814/character_passiveSkill_icon.png",
+      "castIllustration": "resources/characters/12250814/character_passiveSkill_castIllustration.png"
+    },
+    "activeSkills": [
+      {
+        "name": "电光火石",
+        "type": "攻击",
+        "effectDescription": "对单个敌人造成伤害，并附加沉默buff",
+        "characteristic": "连续使用效果递增",
+        "icon": "resources/characters/12250814/character_activeSkills_0_icon.jpg",
+        "castIllustration": "resources/characters/12250814/character_activeSkills_0_castIllustration.png"
+      },
+      {
+        "name": "凝息",
+        "type": "恢复",
+        "effectDescription": "治疗自身血量，并在下个回合提供减伤效果",
+        "characteristic": "连续使用可在第二次过后全免伤害",
+        "icon": "resources/characters/12250814/character_activeSkills_1_icon.png",
+        "castIllustration": "resources/characters/12250814/character_activeSkills_1_castIllustration.jpg"
+      }
+    ]
+  },
+  "images": {
+    "avatar": "resources/characters/12250814/images_avatar.png",
+    "portrait": "resources/characters/12250814/images_portrait.png",
+    "selectionPortrait": "resources/characters/12250814/images_selectionPortrait.png"
+  }
+}

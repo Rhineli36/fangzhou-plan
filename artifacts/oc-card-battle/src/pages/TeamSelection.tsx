@@ -270,33 +270,35 @@ function CharacterTile({ character, viewed, selected, battleReady, onClick }: { 
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative aspect-square overflow-hidden border transition ${
-        viewed
-          ? "z-10 scale-105 border-primary shadow-[0_0_24px_rgba(168,85,247,0.35)]"
-          : "border-border/45 hover:border-primary/60"
-      } ${selected ? "opacity-55" : ""}`}
-    >
-      {character.avatar ? (
-        <div className="flex h-full w-full items-center justify-center bg-white/90">
-          <img src={character.avatar} alt={displayName} className="max-h-full max-w-full object-contain" />
-        </div>
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-secondary text-lg font-bold text-muted-foreground">{displayName[0]}</div>
-      )}
-      {selected && (
-        <div className="absolute right-1 top-1 rounded-full bg-primary p-0.5">
-          <Check className="h-3 w-3 text-white" />
-        </div>
-      )}
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={onClick}
+        className={`relative aspect-square w-full overflow-hidden border transition ${
+          viewed
+            ? "z-10 scale-105 border-primary shadow-[0_0_24px_rgba(168,85,247,0.35)]"
+            : "border-border/45 hover:border-primary/60"
+        } ${selected ? "opacity-55" : ""}`}
+      >
+        {character.avatar ? (
+          <div className="flex h-full w-full items-center justify-center bg-white/90">
+            <img src={character.avatar} alt={displayName} className="max-h-full max-w-full object-contain" />
+          </div>
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-secondary text-lg font-bold text-muted-foreground">{displayName[0]}</div>
+        )}
+        {selected && (
+          <div className="absolute right-1 top-1 rounded-full bg-primary p-0.5">
+            <Check className="h-3 w-3 text-white" />
+          </div>
+        )}
+      </button>
       {!battleReady && (
-        <div className="absolute inset-x-0 bottom-0 bg-black/80 py-1 text-center text-[9px] font-bold tracking-widest text-yellow-100">
-          待实装
+        <div className="mt-1 h-4 truncate text-center text-[9px] font-black tracking-widest text-yellow-100">
+          未实装
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -332,7 +334,7 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
           <div className="mt-3 flex flex-wrap gap-2">
             <Badge variant="outline" className="rounded-none border-primary/50 text-primary">{character.profession}</Badge>
             <Badge variant="secondary" className="rounded-none bg-secondary/80">{character.positioning}</Badge>
-            {!battleReady && <Badge variant="outline" className="rounded-none border-yellow-300/50 text-yellow-100">待实装</Badge>}
+            {!battleReady && <Badge variant="outline" className="rounded-none border-yellow-300/50 text-yellow-100">未实装</Badge>}
           </div>
           <div className="mt-3 inline-flex items-center gap-2 border border-emerald-300/40 bg-emerald-300/10 px-3 py-1.5 text-sm font-black text-emerald-100">
             <span className="font-mono text-[10px] tracking-[0.24em] text-emerald-100/65">LIFE</span>
@@ -345,7 +347,7 @@ function CharacterPreview({ character, selected, teamFull, battleReady, onSelect
             disabled={character.locked || !battleReady || (!selected && teamFull)}
             onClick={onSelect}
           >
-            {!battleReady ? "待实装" : selected ? "已在队伍中" : teamFull ? "队伍已满" : "选择"}
+            {!battleReady ? "未实装" : selected ? "已在队伍中" : teamFull ? "队伍已满" : "选择"}
           </Button>
           <Button asChild variant="outline" className="h-12 rounded-none border-border bg-black/40 font-black tracking-widest text-foreground hover:bg-secondary">
             <Link href={`/character/${character.id}`}>详细信息</Link>

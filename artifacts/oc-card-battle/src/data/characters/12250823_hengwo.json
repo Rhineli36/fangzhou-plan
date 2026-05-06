@@ -1,0 +1,80 @@
+{
+  "submittedAt": "2026-05-06T08:57:32.398Z",
+  "creator": {
+    "name": "魏嘉莹",
+    "studentId": "12250823",
+    "class": "2025届设计8班",
+    "avatar": "resources/characters/12250823/creator_avatar.jpg",
+    "messageToCharacter": "故乡是男人的奥德赛，逃离是女人的史诗。\n我们都活着，在创作永恒",
+    "proposedGameName": "方舟"
+  },
+  "character": {
+    "id": "oc-mottqjfy",
+    "name": "恒我",
+    "title": "出走后的娜拉",
+    "profession": "支援者",
+    "positioning": "药剂师",
+    "hp": 5,
+    "gender": "女",
+    "age": "116",
+    "birthday": "11，18",
+    "zodiac": "天蝎座",
+    "bloodType": "未知",
+    "linkedCharacters": [
+      "猫组织的前任队长阿毛"
+    ],
+    "selectionLine": "世界是我的牡蛎",
+    "backgroundStory": "末日降临，人人自危，在方舟上众人皆知嫦娥，而不知恒我。恒我是嫦娥的真名，恒我即为我，即永恒。世界分为了上层统治层：天堂口，享尽荣华富贵，在末世里草菅人命。以及底层人民自发创建的组织：猫。她被猫收养，猫以行侠仗义劫富济贫为宗旨保障人民百姓安全。恒我在这个组织里学会了配制草药疗伤，为猫提供了许多次后援。随着她长大，被推举为猫的首领。后期因为天堂口和猫的阶级利益纠缠，猫组织被围剿，经过一场血战后仅剩恒我和一些残留的小兵。世界末日动荡，幽云边地，她白日里在院中熬药，文火慢炖着寺里老尼传下的方子，袅袅药烟里，总盘着几只不肯离去的灵猫。据说那药汤里混着古寺的晨露，能引动山野间的灵气，夜里常有微光自陶瓮中漫出，护着这一方小院，在乱世里守着一方安宁。她以这尚存的一丝力量试图与恶势力进行对抗",
+    "extendedBackground": {
+      "origin": "因是个女娃就被父母抛弃，辗转被猫收养。因和嫦娥一样喜爱草药而被女子兵队长阿毛命名为嫦娥的本名，恒我。快乐成长。",
+      "family": "无，是个孤儿。但是把猫组织里的每个人看得比亲人还重要",
+      "pastExperiences": "世界资源危机下，众多阶层对于老百姓的规训和压迫本身就是一场残忍行为。猫被强迫拆散，阿毛被捉拿归案，在菜市场被砍头。这也让恒我复仇意识觉醒，勇敢的和他们对峙，不愿阿毛和猫组织的其他成员在天之灵不能安息。她继续劫富济贫关心民间疾苦，可末日之下安有完卵？她还是被捕获了。",
+      "currentSituation": "为新一轮战斗和守护制药",
+      "epilogue": "她没有结局，她们也没有结局，但她们知道，还有明天。她在这场末日对决中拼尽全力拯救伤员，试图击溃天堂口的军队，可是寡不敌众，天堂口的军队很快将猫的残兵统统绞杀，恒我看着这血腥的一幕，不禁悲从中来，用尽全力与其战斗，直至最后也不忘发扬猫的精神。最后用一瓶毒药自杀，结束悲壮的一生。",
+      "epilogueIllustration": "resources/characters/12250823/character_extendedBackground_epilogueIllustration.jpg"
+    },
+    "preferences": {
+      "likes": [
+        "旅游",
+        "吃东西"
+      ],
+      "dislikes": [
+        "老鼠"
+      ],
+      "favoriteColor": "大地土色",
+      "habits": "喜欢吃。很馋，喜爱甜食，经常在各地旅行中学习当地甜食并回来复制。\n虽然喜欢养猫可是猫毛过敏",
+      "motto": "我不愿静止"
+    },
+    "passiveSkill": {
+      "name": "一键满血",
+      "type": "天赋",
+      "effectDescription": "喝下药水立刻满血复活",
+      "characteristic": "每回合出发两次",
+      "icon": "resources/characters/12250823/character_passiveSkill_icon.jpg",
+      "castIllustration": "resources/characters/12250823/character_passiveSkill_castIllustration.jpg"
+    },
+    "activeSkills": [
+      {
+        "name": "药水反攻",
+        "type": "攻击",
+        "effectDescription": "泼药水造成敌人伤害",
+        "characteristic": "连续使用效果递减",
+        "icon": "resources/characters/12250823/character_activeSkills_0_icon.jpg",
+        "castIllustration": "resources/characters/12250823/character_activeSkills_0_castIllustration.jpg"
+      },
+      {
+        "name": "冰雪瞬杀",
+        "type": "攻击",
+        "effectDescription": "对单个敌人造成较强伤害。可远程反射出冰雪射线。",
+        "characteristic": "命中后敌人无法动弹，如被冰雪冻僵",
+        "icon": "resources/characters/12250823/character_activeSkills_1_icon.jpg",
+        "castIllustration": "resources/characters/12250823/character_activeSkills_1_castIllustration.jpg"
+      }
+    ]
+  },
+  "images": {
+    "avatar": "resources/characters/12250823/images_avatar.jpg",
+    "portrait": "resources/characters/12250823/images_portrait.jpg",
+    "selectionPortrait": "resources/characters/12250823/images_selectionPortrait.jpg"
+  }
+}

@@ -48,6 +48,9 @@ type StatusId =
   | "memory"
   | "rewind"
   | "chronosGuard"
+  | "fateBook"
+  | "delayedMissile"
+  | "devourChance"
   | "nextDraw"
   | "nextEnergy"
   | "nextHand"
@@ -196,6 +199,9 @@ const statusText: Partial<Record<StatusId, string>> = {
   memory: "记忆检索",
   rewind: "时痕回溯",
   chronosGuard: "时序守护",
+  fateBook: "命运之书",
+  delayedMissile: "延迟飞弹",
+  devourChance: "吞噬强化",
   nextDraw: "摸牌提升",
   nextEnergy: "能量提升",
   nextHand: "手牌上限提升",
@@ -359,6 +365,28 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
       stacks: 3,
       description: "队友护盾被清除时回复 1 点生命，最多触发 3 次。",
     },
+    fateBook: {
+      id,
+      name: "命运之书",
+      icon: patch.icon ?? "",
+      stacks: 15,
+      description: "计数达到 15 时，己方角色倒下会以 50% 生命复活并清空计数。艾瑟琳每打出或指定弃置一张自己的牌，计数 +1。",
+    },
+    delayedMissile: {
+      id,
+      name: "延迟飞弹",
+      icon: patch.icon ?? attackUpIcon,
+      duration: 1,
+      stacks: 1,
+      description: "下个己方回合开始时结算等同层数的奥术飞弹伤害。",
+    },
+    devourChance: {
+      id,
+      name: "吞噬强化",
+      icon: patch.icon ?? "",
+      stacks: 30,
+      description: "受到未被护盾抵消的伤害时，按当前概率免疫；失败后概率 +15%，成功后重置为 30%。",
+    },
     nextDraw: {
       id,
       name: "摸牌提升",
@@ -462,8 +490,8 @@ function addOrRefreshStatus(statuses: Status[], status: Status): Status[] {
   );
 }
 
-const debuffIds: StatusId[] = ["daze", "bleed", "mark", "healBlock", "uncontrolled", "weak", "wound", "coma", "dualBlade"];
-const buffIds: StatusId[] = ["shield", "attackUp", "immunity", "regen", "damageBoost", "stealth", "rewind", "nextDraw", "nextEnergy", "nextHand", "silkDrain", "irisField", "twinSymbiosis", "twinCompensation"];
+const debuffIds: StatusId[] = ["daze", "bleed", "mark", "healBlock", "uncontrolled", "weak", "wound", "coma", "dualBlade", "delayedMissile"];
+const buffIds: StatusId[] = ["shield", "attackUp", "immunity", "regen", "damageBoost", "stealth", "rewind", "nextDraw", "nextEnergy", "nextHand", "silkDrain", "irisField", "twinSymbiosis", "twinCompensation", "fateBook", "devourChance"];
 
 function isDebuff(status: Status): boolean {
   return debuffIds.includes(status.id);
@@ -545,6 +573,13 @@ function getSkillCost(skill: Skill): number {
   if (skill.name === "剥离、千层刃") return 3;
   if (skill.name === "层解、回溯") return 2;
   if (skill.name === "空心、归寂") return 3;
+  if (skill.name === "奥术飞弹") return 2;
+  if (skill.name === "虚空力场") return 3;
+  if (skill.name === "生命源泉") return 2;
+  if (skill.name === "电光火石") return 2;
+  if (skill.name === "凝息") return 2;
+  if (skill.name === "逆剂回流") return 3;
+  if (skill.name === "寒脉封针") return 3;
   return Math.max(1, skill.cost || 2);
 }
 
@@ -643,19 +678,26 @@ function createInitialState(team: Character[]): BattleState {
     if (talent) {
       talentLogs.push(`【${character.name}】天赋「${talent.name}」启动：${talent.effect || talent.description}`);
     }
+    const statuses = talent
+      ? [
+          makeStatus("talent", {
+            name: talent.name,
+            icon: talent.icon || character.avatar,
+            description: talent.description || talent.effect,
+          }),
+        ]
+      : [];
+    if (character.creator?.studentId === "12250802") {
+      statuses.push(makeTalentStatus(character, "fateBook", { stacks: 15 }));
+    }
+    if (character.creator?.studentId === "12250814") {
+      statuses.push(makeTalentStatus(character, "devourChance", { stacks: 30 }));
+    }
     return {
       character,
       hp: character.hp,
       maxHp: character.hp,
-      statuses: talent
-        ? [
-            makeStatus("talent", {
-              name: talent.name,
-              icon: talent.icon || character.avatar,
-              description: talent.description || talent.effect,
-            }),
-          ]
-        : [],
+      statuses,
     };
   });
   const enemyUnits: EnemyUnitState[] = (currentBoss.units ?? []).map(unit => ({
@@ -732,11 +774,13 @@ function needsAllyTarget(card: BattleCard): boolean {
     "蛛丝汲生",
     "雾翼庇护",
     "残响屏障",
+    "生命源泉",
+    "逆剂回流",
   ].includes(card.skill.name);
 }
 
 function isSelfCast(card: BattleCard): boolean {
-  return ["预知残影", "时痕回溯", "残影读秒", "念念不忘", "时滞刀域", "异化释放", "烬影·回溯"].includes(card.skill.name);
+  return ["预知残影", "时痕回溯", "残影读秒", "念念不忘", "时滞刀域", "异化释放", "烬影·回溯", "凝息", "虚空力场"].includes(card.skill.name);
 }
 
 function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Fighter; blocked: boolean; damage: number } {
@@ -750,6 +794,32 @@ function applyDamageToFighter(fighter: Fighter, amount: number): { fighter: Figh
       .map(status => (status.id === "shield" ? { ...status, stacks: (status.stacks ?? 1) - 1 } : status))
       .filter(status => status.id !== "shield" || (status.stacks ?? 0) > 0);
     return { fighter: { ...fighter, statuses }, blocked: true, damage: 0 };
+  }
+  if (fighter.character.creator?.studentId === "12250814") {
+    const chance = Math.min(100, Math.max(30, getStatusStacks(fighter.statuses, "devourChance") || 30));
+    const nextChance = makeTalentStatus(fighter.character, "devourChance", {
+      stacks: Math.min(100, chance + 15),
+      description: `当前免疫概率 ${Math.min(100, chance + 15)}%。触发免疫后重置为 30%。`,
+    });
+    if (Math.random() * 100 < chance) {
+      const statuses = addOrRefreshStatus(
+        fighter.statuses.filter(status => status.id !== "devourChance"),
+        makeTalentStatus(fighter.character, "devourChance", {
+          stacks: 30,
+          description: "当前免疫概率 30%。触发免疫后重置为 30%。",
+        }),
+      );
+      return { fighter: { ...fighter, statuses }, blocked: true, damage: 0 };
+    }
+    return {
+      fighter: {
+        ...fighter,
+        hp: Math.max(0, fighter.hp - incoming),
+        statuses: addOrRefreshStatus(fighter.statuses.filter(status => status.id !== "devourChance"), nextChance),
+      },
+      blocked: false,
+      damage: incoming,
+    };
   }
   return { fighter: { ...fighter, hp: Math.max(0, fighter.hp - incoming) }, blocked: false, damage: incoming };
 }
@@ -773,6 +843,12 @@ function afterFighterDamaged(state: BattleState, fighter: Fighter, logs: string[
         logs.push("目标处于标记状态，生成 2 张快速射击。");
       }
     }
+  }
+
+  if (nextFighter.hp <= 0) {
+    const revived = tryFateBookRevive(next, nextFighter, logs);
+    next = revived.state;
+    nextFighter = revived.fighter;
   }
 
   if (nextFighter.character.creator?.studentId === "12250806" && Math.random() < 0.5) {
@@ -805,6 +881,59 @@ function healFighter(fighter: Fighter, amount: number): Fighter {
   const wounded = fighter.statuses.some(status => status.id === "wound");
   const heal = wounded ? Math.ceil(amount / 2) : amount;
   return { ...fighter, hp: Math.min(fighter.maxHp, fighter.hp + heal) };
+}
+
+function setFateBookStacks(fighter: Fighter, stacks: number): Fighter {
+  const value = Math.max(0, Math.min(15, stacks));
+  return {
+    ...fighter,
+    statuses: addOrRefreshStatus(
+      fighter.statuses.filter(status => status.id !== "fateBook"),
+      makeTalentStatus(fighter.character, "fateBook", {
+        stacks: value,
+        description: `命运之书计数 ${value}/15。计数达到 15 时，己方角色倒下会以 50% 生命复活并清空计数。`,
+      }),
+    ),
+  };
+}
+
+function incrementFateBook(state: BattleState, ownerId: string, logs: string[], reason: string): BattleState {
+  const ownerIndex = state.fighters.findIndex(fighter => fighter.character.id === ownerId && fighter.character.creator?.studentId === "12250802");
+  if (ownerIndex === -1) return state;
+  const owner = state.fighters[ownerIndex];
+  const current = getStatusStacks(owner.statuses, "fateBook");
+  const nextValue = Math.min(15, current + 1);
+  if (nextValue !== current) logs.push(`${reason}：命运之书计数 ${nextValue}/15。`);
+  return {
+    ...state,
+    fighters: state.fighters.map((fighter, index) => (index === ownerIndex ? setFateBookStacks(fighter, nextValue) : fighter)),
+  };
+}
+
+function tryFateBookRevive(state: BattleState, fighter: Fighter, logs: string[]): { state: BattleState; fighter: Fighter } {
+  if (fighter.hp > 0) return { state, fighter };
+
+  const selfFate = fighter.character.creator?.studentId === "12250802" ? getStatusStacks(fighter.statuses, "fateBook") : 0;
+  if (selfFate >= 15) {
+    logs.push(`命运之书触发：${fighter.character.name} 以 50% 生命复活，计数清空。`);
+    return { state, fighter: setFateBookStacks({ ...fighter, hp: Math.max(1, Math.ceil(fighter.maxHp / 2)) }, 0) };
+  }
+
+  const aiselinIndex = state.fighters.findIndex(item =>
+    item.character.creator?.studentId === "12250802" &&
+    item.hp > 0 &&
+    getStatusStacks(item.statuses, "fateBook") >= 15
+  );
+  if (aiselinIndex === -1) return { state, fighter };
+
+  logs.push(`命运之书触发：${fighter.character.name} 以 50% 生命复活，艾瑟琳计数清空。`);
+  return {
+    state: {
+      ...state,
+      fighters: state.fighters.map((item, index) => (index === aiselinIndex ? setFateBookStacks(item, 0) : item)),
+    },
+    fighter: { ...fighter, hp: Math.max(1, Math.ceil(fighter.maxHp / 2)) },
+  };
 }
 
 function applyDebuffToFighter(state: BattleState, fighterIndex: number, status: Status, logs: string[]): { state: BattleState; resisted: boolean } {
@@ -912,6 +1041,11 @@ function firstAliveEnemyId(state: BattleState): string | undefined {
   return state.enemyUnits.find(unit => unit.hp > 0)?.id;
 }
 
+function randomAliveEnemyId(state: BattleState): string | undefined {
+  const alive = state.enemyUnits.filter(unit => unit.hp > 0);
+  return alive[Math.floor(Math.random() * alive.length)]?.id;
+}
+
 function getTargetEnemyId(state: BattleState, targetId?: string): string | undefined {
   if (!hasEnemyUnits(state)) return undefined;
   if (currentBoss.encounterType === "summoner") {
@@ -957,6 +1091,56 @@ function addEnemyStatusToAll(state: BattleState, status: Status): BattleState {
       unit.hp > 0 ? { ...unit, statuses: addOrRefreshStatus(unit.statuses, status) } : unit,
     ),
   };
+}
+
+function addDelayedMissile(state: BattleState, amount: number, icon?: string, targetId?: string): BattleState {
+  const status = makeStatus("delayedMissile", {
+    icon,
+    stacks: amount,
+    duration: 1,
+    description: `下个己方回合开始时结算 ${amount} 点奥术飞弹伤害。`,
+  });
+  return addEnemyStatus(state, status, targetId);
+}
+
+function addDelayedMissileToAll(state: BattleState, amount: number, icon?: string): BattleState {
+  const status = makeStatus("delayedMissile", {
+    icon,
+    stacks: amount,
+    duration: 1,
+    description: `下个己方回合开始时结算 ${amount} 点奥术飞弹伤害。`,
+  });
+  return addEnemyStatusToAll(state, status);
+}
+
+function resolveDelayedMissiles(state: BattleState, logs: string[]): BattleState {
+  if (hasEnemyUnits(state)) {
+    let total = 0;
+    const enemyUnits = state.enemyUnits.map(unit => {
+      const damage = getStatusStacks(unit.statuses, "delayedMissile");
+      if (unit.hp <= 0 || damage <= 0) return unit;
+      total += damage;
+      logs.push(`延迟奥术飞弹命中 ${unit.name}，造成 ${damage} 点伤害。`);
+      return {
+        ...unit,
+        hp: Math.max(0, unit.hp - damage),
+        statuses: unit.statuses.filter(status => status.id !== "delayedMissile"),
+      };
+    });
+    return total > 0 ? processFinaleTransitions(syncAggregateBoss({ ...state, enemyUnits }), logs) : state;
+  }
+
+  const damage = getStatusStacks(state.boss.statuses, "delayedMissile");
+  if (damage <= 0) return state;
+  logs.push(`延迟奥术飞弹命中 ${currentBoss.name}，造成 ${damage} 点伤害。`);
+  const next = {
+    ...state,
+    boss: {
+      ...state.boss,
+      statuses: state.boss.statuses.filter(status => status.id !== "delayedMissile"),
+    },
+  };
+  return applyBossDamage(next, damage, logs);
 }
 
 function addEnemyStatusToRandom(state: BattleState, status: Status, logs: string[], label: string): BattleState {
@@ -1746,6 +1930,27 @@ function applyDiscardEffects(state: BattleState, card: BattleCard): BattleState 
     logs.push("时序修复弃置效果触发：恢复 1 点能量。");
   }
 
+  if (card.skill.name === "虚空力场" && ownerIndex >= 0) {
+    const owner = next.fighters[ownerIndex];
+    const damagedOwner = { ...owner, hp: Math.max(0, owner.hp - 1), statuses: addOrRefreshStatus(owner.statuses, makeStatus("shield")) };
+    const after = afterFighterDamaged(next, damagedOwner, logs);
+    next = {
+      ...after.state,
+      fighters: after.state.fighters.map((fighter, index) => (index === ownerIndex ? after.fighter : fighter)),
+    };
+    next = incrementFateBook(next, card.ownerId, logs, "虚空力场主动弃牌");
+    logs.push("虚空力场弃置效果：艾瑟琳失去 1 点生命，获得 1 层护盾。");
+  }
+
+  if (card.skill.name === "生命源泉" && ownerIndex >= 0) {
+    next = {
+      ...next,
+      fighters: next.fighters.map((fighter, index) => (index === ownerIndex ? healFighter(fighter, 1) : fighter)),
+    };
+    next = incrementFateBook(next, card.ownerId, logs, "生命源泉主动弃牌");
+    logs.push("生命源泉弃置效果：艾瑟琳回复 1 点生命。");
+  }
+
   return { ...next, log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
 }
 
@@ -1770,10 +1975,131 @@ function applyCardPlayedTalents(state: BattleState, card: BattleCard, logs: stri
     };
   }
 
+  if (owner.character.creator?.studentId === "12250802") {
+    next = incrementFateBook(next, card.ownerId, logs, `${owner.character.name} 打出技能牌`);
+  }
+
   return next;
 }
 
 function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copied: boolean, targetIndex?: number, enemyTargetId?: string): BattleState {
+  if (card.skill.name === "奥术飞弹") {
+    const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
+    const playedByAiselin = state.playedSkillNames.filter(name => name.startsWith(`${card.ownerId}:`)).length;
+    const sameMissiles = state.playedSkillNames.filter(name => name === `${card.ownerId}:奥术飞弹`).length;
+    const damage = 2 + playedByAiselin;
+    let next = addDelayedMissile(state, damage, card.skill.icon || owner?.character.avatar, enemyTargetId);
+    logs.push(`奥术飞弹锁定目标，将在下个己方回合开始时造成 ${damage} 点伤害。`);
+    if (!copied && sameMissiles > 1 && Math.random() < 0.5) {
+      next = addDelayedMissileToAll(next, damage, card.skill.icon || owner?.character.avatar);
+      logs.push("额外奥术飞弹触发：所有敌方目标都被延迟飞弹锁定。");
+    }
+    return next;
+  }
+
+  if (card.skill.name === "虚空力场") {
+    const shieldIndex = findShieldTarget(state.fighters);
+    const fighters = state.fighters.map((fighter, index) => {
+      if (fighter.hp <= 0) return fighter;
+      let statuses = addOrRefreshStatus(fighter.statuses, makeStatus("attackUp", { duration: 2 }));
+      if (index === shieldIndex) statuses = addOrRefreshStatus(statuses, makeStatus("shield"));
+      return { ...fighter, statuses };
+    });
+    logs.push(`虚空力场为 ${state.fighters[shieldIndex].character.name} 生成 1 层护盾，并赋予全体 2 回合攻击提升。`);
+    return { ...state, fighters };
+  }
+
+  if (card.skill.name === "生命源泉") {
+    const index = targetIndex ?? findHealTarget(state.fighters);
+    const target = state.fighters[index];
+    const removed = target.statuses.filter(isDebuff).length;
+    const cleansed = { ...target, statuses: removeDebuffs(target.statuses, 99) };
+    const healed = healFighter(cleansed, 1);
+    const regenStacks = Math.max(1, removed);
+    const finalTarget = {
+      ...healed,
+      statuses: addOrRefreshStatus(healed.statuses, makeStatus("regen", { stacks: regenStacks, duration: 2 })),
+    };
+    logs.push(`生命源泉为 ${target.character.name} 回复 1 点生命，驱散 ${removed} 层减益，并生成 ${regenStacks} 层恢复。`);
+    return {
+      ...state,
+      fighters: state.fighters.map((fighter, fighterIndex) => (fighterIndex === index ? finalTarget : fighter)),
+    };
+  }
+
+  if (card.skill.name === "电光火石") {
+    const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
+    const damage = 1 + Math.floor(Math.random() * 3);
+    let next = applyDirectBossDamage(state, card, damage, logs, enemyTargetId);
+    const devourChance = owner ? getStatusStacks(owner.statuses, "devourChance") : 30;
+    const interrupt = devourChance > 30 || Math.random() < 0.5;
+    if (interrupt) {
+      next = addEnemyStatus(next, makeStatus("coma", { duration: 1 }), enemyTargetId);
+      logs.push(`电光火石造成 ${damage} 点伤害，并打断目标行动。`);
+    } else {
+      logs.push(`电光火石造成 ${damage} 点伤害，打断判定未触发。`);
+    }
+    return next;
+  }
+
+  if (card.skill.name === "凝息") {
+    const ownerIndex = state.fighters.findIndex(fighter => fighter.character.id === card.ownerId);
+    if (ownerIndex === -1) return state;
+    const fighters = state.fighters.map((fighter, index) => {
+      if (index !== ownerIndex) return fighter;
+      const chance = Math.min(100, (getStatusStacks(fighter.statuses, "devourChance") || 30) + 15);
+      const healed = healFighter(fighter, 2);
+      return {
+        ...healed,
+        statuses: addOrRefreshStatus(
+          addOrRefreshStatus(healed.statuses.filter(status => status.id !== "devourChance"), makeStatus("attackUp", { duration: 2 })),
+          makeTalentStatus(healed.character, "devourChance", {
+            stacks: chance,
+            description: `当前免疫概率 ${chance}%。触发免疫后重置为 30%。`,
+          }),
+        ),
+      };
+    });
+    logs.push("凝息：马特维回复 2 点生命，获得 2 回合攻击提升，吞噬强化免疫概率 +15%。");
+    return { ...state, fighters };
+  }
+
+  if (card.skill.name === "逆剂回流") {
+    const index = targetIndex ?? findHealTarget(state.fighters);
+    const target = state.fighters[index];
+    if (!target || target.hp <= 0) return state;
+    const hasHengwoTalent = state.fighters.some(fighter => fighter.character.creator?.studentId === "12250823" && fighter.hp > 0);
+    const bonusRegen = hasHengwoTalent && Math.random() < 0.5;
+    const bonusHeal = hasHengwoTalent && Math.random() < 0.5;
+    const healAmount = 2 + (bonusHeal ? 1 : 0);
+    const healed = healFighter(target, healAmount);
+    const finalTarget = bonusRegen
+      ? { ...healed, statuses: addOrRefreshStatus(healed.statuses, makeStatus("regen")) }
+      : healed;
+    let next: BattleState = {
+      ...state,
+      fighters: state.fighters.map((fighter, fighterIndex) => (fighterIndex === index ? finalTarget : fighter)),
+    };
+    const randomTargetId = hasEnemyUnits(next) ? randomAliveEnemyId(next) : undefined;
+    next = applyBossDamage(next, healAmount, logs, randomTargetId);
+    const talentText = bonusRegen || bonusHeal
+      ? `药息共鸣触发：${bonusRegen ? "获得 1 层恢复" : "未获得恢复"}，${bonusHeal ? "额外回复 1 点生命" : "未额外治疗"}。`
+      : "";
+    logs.push(`逆剂回流为 ${target.character.name} 回复 ${healAmount} 点生命，并对随机敌人造成 ${healAmount} 点伤害。${talentText}`);
+    return next;
+  }
+
+  if (card.skill.name === "寒脉封针") {
+    const damage = 1 + Math.floor(Math.random() * 3);
+    let next = applyDirectBossDamage(state, card, damage, logs, enemyTargetId);
+    const controlled = Math.random() < 0.5;
+    const weakened = Math.random() < 0.5;
+    if (controlled) next = addEnemyStatus(next, makeStatus("coma", { duration: 1 }), enemyTargetId);
+    if (weakened) next = addEnemyStatus(next, makeStatus("weak", { duration: 2, stacks: 1 }), enemyTargetId);
+    logs.push(`寒脉封针造成 ${damage} 点伤害${controlled ? "，并打断目标行动" : ""}${weakened ? "，附加 1 层虚弱" : ""}。`);
+    return next;
+  }
+
   if (card.skill.name === "剥离、千层刃") {
     const damage = 1 + Math.floor(Math.random() * 3);
     let next = applyDirectBossDamage(state, card, damage, logs, enemyTargetId);
@@ -3201,7 +3527,8 @@ function randomAliveIndex(fighters: Fighter[]): number {
 
 function startPlayerTurn(state: BattleState): BattleState {
   const logs: string[] = [];
-  const fighters = state.fighters.map(fighter => {
+  let workingState = resolveDelayedMissiles(state, logs);
+  const fighters = workingState.fighters.map(fighter => {
     const bleed = fighter.statuses.find(status => status.id === "bleed");
     const damage = bleed?.stacks ?? 0;
     if (damage > 0) logs.push(`${fighter.character.name} 因流血失去 ${damage} 点生命。`);
@@ -3266,9 +3593,9 @@ function startPlayerTurn(state: BattleState): BattleState {
     : 0;
 
   let next: BattleState = {
-    ...state,
-    turn: state.turn + 1,
-    energy: Math.min(state.maxEnergy, state.energy + 4 + extraEnergy + scavengerEnergy),
+    ...workingState,
+    turn: workingState.turn + 1,
+    energy: Math.min(workingState.maxEnergy, workingState.energy + 4 + extraEnergy + scavengerEnergy),
     maxHand: getBaseMaxHand(processedFighters.map(fighter => fighter.character)) + extraHand,
     phase: "player",
     fighters: processedFighters,
@@ -3276,12 +3603,20 @@ function startPlayerTurn(state: BattleState): BattleState {
     quickShotCount: 0,
     playedThisTurn: [],
     playedSkillNames: [],
-    boss: { ...state.boss, crownCooldown: Math.max(0, state.boss.crownCooldown - 1) },
-    log: logs.length ? [...logs, ...state.log].slice(0, LOG_LIMIT) : state.log,
+    boss: { ...workingState.boss, crownCooldown: Math.max(0, workingState.boss.crownCooldown - 1) },
+    log: logs.length ? [...logs, ...workingState.log].slice(0, LOG_LIMIT) : workingState.log,
   };
 
   if (processedFighters.every(fighter => fighter.hp <= 0)) {
     return { ...next, phase: "defeat", finaleLine: defeatLines[Math.floor(Math.random() * defeatLines.length)] };
+  }
+
+  if (next.boss.hp <= 0) {
+    return {
+      ...next,
+      phase: "victory",
+      finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)],
+    };
   }
 
   const draw = next.drawPerTurn + (next.turn <= 3 ? 1 : 0) + extraDraw;

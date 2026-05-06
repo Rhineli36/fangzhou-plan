@@ -1077,6 +1077,153 @@ function applyTeacherBattleOverrides(character: Character): Character {
     };
   }
 
+  if (character.creator?.studentId === "12250802") {
+    const talent = byType(character, "天赋");
+    const missile = byName(character, "奥术飞弹");
+    const field = byName(character, "虚空力场");
+    const spring = byName(character, "生命源泉");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "命运之书",
+          type: "天赋",
+          description: "战斗开始获得 15 层命运计数。艾瑟琳每打出 1 张自己的技能牌，计数 +1。友方倒下时，若计数达到 15 层，清空计数并使其以 50% 生命复活。",
+          range: "多体",
+          cost: 0,
+          effect: "记录技能牌；满 15 层触发友方复活。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "奥术飞弹",
+          type: "攻击",
+          description: "费用 2。指定 1 名敌人，下回合开始时造成伤害。基础伤害为 2，本回合每打出 1 张艾瑟琳技能牌，伤害 +1。若本回合再次打出奥术飞弹，有 50% 几率改为全体敌人各结算一次。",
+          range: "单体",
+          cost: 2,
+          effect: "延迟伤害；随本回合艾瑟琳出牌数提高。",
+          upgrade: "",
+          icon: missile?.icon || character.skills[1]?.icon,
+          castIllustration: missile?.castIllustration,
+        },
+        {
+          name: "虚空力场",
+          type: "异能",
+          description: "费用 3。为当前生命最低的友方获得 1 层护盾，并让全体友方获得 2 回合攻击提升。主动弃置时，艾瑟琳失去 1 点生命并获得 1 层护盾，同时计入命运之书出牌计数。",
+          range: "多体",
+          cost: 3,
+          effect: "保护低血量友方；全队攻击提升。",
+          upgrade: "",
+          icon: field?.icon || character.skills[2]?.icon || missile?.icon,
+          castIllustration: field?.castIllustration,
+        },
+        {
+          name: "生命源泉",
+          type: "恢复",
+          description: "费用 2。指定 1 名友方，回复 1 点生命并驱散全部减益；每驱散 1 项减益，获得 1 层恢复。主动弃置时，艾瑟琳回复 1 点生命，同时计入命运之书出牌计数。",
+          range: "单体",
+          cost: 2,
+          effect: "治疗；净化减益；按净化数量获得恢复。",
+          upgrade: "",
+          icon: spring?.icon || character.skills[3]?.icon || field?.icon,
+          castIllustration: spring?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250814") {
+    const talent = byType(character, "天赋");
+    const spark = byName(character, "电光火石");
+    const breath = byName(character, "凝息");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "吞噬强化",
+          type: "天赋",
+          description: "马特维每次实际受到生命伤害时，按当前吞噬概率判定是否免疫。初始概率 30%；免疫失败后概率 +15%，成功免疫后重置为 30%。护盾抵消的伤害不会触发判定。",
+          range: "单体",
+          cost: 0,
+          effect: "受伤时概率免疫；失败会提高下次概率。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "电光火石",
+          type: "攻击",
+          description: "费用 2。对单个敌人造成 1-3 点随机伤害，并有 50% 几率打断或控制目标。若马特维当前吞噬概率高于 30%，打断判定必定成功。",
+          range: "单体",
+          cost: 2,
+          effect: "随机伤害；概率打断，高吞噬概率时必定打断。",
+          upgrade: "",
+          icon: spark?.icon || character.skills[1]?.icon,
+          castIllustration: spark?.castIllustration,
+        },
+        {
+          name: "凝息",
+          type: "恢复",
+          description: "费用 2。马特维回复 2 点生命，获得 2 回合攻击提升，并使吞噬强化的当前免疫概率 +15%。",
+          range: "单体",
+          cost: 2,
+          effect: "自我治疗；攻击提升；提高吞噬概率。",
+          upgrade: "",
+          icon: breath?.icon || character.skills[2]?.icon || spark?.icon,
+          castIllustration: breath?.castIllustration,
+        },
+      ],
+    };
+  }
+
+  if (character.creator?.studentId === "12250823") {
+    const talent = byName(character, "一键满血") || byType(character, "天赋");
+    const reflux = byName(character, "药水反攻");
+    const frost = byName(character, "冰雪瞬杀");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "药息共鸣",
+          type: "天赋",
+          description: "恒我在场时，任意友方受到治疗后，分别进行两次判定：50% 几率获得 1 层恢复；50% 几率额外回复 1 点生命。",
+          range: "多体",
+          cost: 0,
+          effect: "全队治疗后概率追加恢复或额外治疗。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "逆剂回流",
+          type: "恢复",
+          description: "费用 3。指定 1 名友方，回复 2 点生命；随后对随机敌人造成等同于本次治疗数值的伤害。若药息共鸣触发额外治疗，本次回流伤害也会随之提高。",
+          range: "单体",
+          cost: 3,
+          effect: "单体治疗；按治疗量反击随机敌人。",
+          upgrade: "",
+          icon: reflux?.icon || character.skills[1]?.icon,
+          castIllustration: reflux?.castIllustration,
+        },
+        {
+          name: "寒脉封针",
+          type: "攻击",
+          description: "费用 3。对单个敌人造成 1-3 点伤害；50% 几率造成控制打断，50% 几率附加 1 层虚弱，持续 2 回合。",
+          range: "单体",
+          cost: 3,
+          effect: "随机伤害；概率控制；概率虚弱。",
+          upgrade: "",
+          icon: frost?.icon || character.skills[2]?.icon || reflux?.icon,
+          castIllustration: frost?.castIllustration,
+        },
+      ],
+    };
+  }
+
   return character;
 }
 
@@ -1105,6 +1252,7 @@ for (const c of loadedFromGlob) {
 const rosterPriority = [
   "test-01",
   "12250801",
+  "12250802",
   "12250804",
   "12250818",
   "12250803",
@@ -1117,16 +1265,19 @@ const rosterPriority = [
   "12250811",
   "12250812",
   "12250813",
+  "12250814",
   "12250815",
   "12250816",
   "12250817",
   "12250819",
   "12250820",
   "12250821",
+  "12250823",
 ];
 export const playableCharacterIds = [
   "test-01",
   "12250801",
+  "12250802",
   "12250803",
   "12250804",
   "12250805",
@@ -1138,6 +1289,7 @@ export const playableCharacterIds = [
   "12250811",
   "12250812",
   "12250813",
+  "12250814",
   "12250815",
   "12250816",
   "12250817",
