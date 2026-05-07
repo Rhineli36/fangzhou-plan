@@ -1,0 +1,73 @@
+{
+  "submittedAt": "2026-05-06T10:38:31.821Z",
+  "creator": {
+    "name": "萧妙璇",
+    "studentId": "12250822",
+    "class": "2025届设计8班",
+    "avatar": "resources/characters/12250822/creator_avatar.jpg",
+    "messageToCharacter": "“我只在你需要我的时候出现，如果你不需要我，我就不会出现了”",
+    "proposedGameName": "红月降临"
+  },
+  "character": {
+    "id": "oc-motxcex9",
+    "name": "编号13",
+    "title": "小13",
+    "profession": "遗民",
+    "positioning": "战术性模仿者",
+    "hp": 5,
+    "gender": "女",
+    "age": "16",
+    "birthday": "1月8号",
+    "zodiac": "摩羯座",
+    "bloodType": "A型",
+    "linkedCharacters": [],
+    "selectionLine": "你出过的招，下一秒就是我的喽",
+    "backgroundStory": "在一个看似和平的世界但其实你在路上看到的大部分人类都是异怪只不过他们会装成人类的样子生活除非你表现得跟他们与众不同，透露出你是人类的相关性息\n",
+    "extendedBackground": {
+      "origin": "某一天红日降临 异怪觉醒 编号13那会还不知道异怪的事 那天晚上他的父母全部变成了怪物并抓住了他，危险关头人类组织的成员破窗而入从怪物手中救了他",
+      "family": "他的家庭很幸福爸妈都很爱他还有一个对他很好的哥哥，但就在红月当天，所有过往都灰飞烟灭",
+      "pastExperiences": "得救后她就被编号5带到了人类组织，组织的头告诉他了所有情况并带他解锁了技能（天赋）“复制”及在与敌人打斗过程中可以通过异瞳复制敌手的技能并使用10秒",
+      "currentSituation": "红月是好几年才会出现的场景但当红月出现时所有的异怪都会觉醒天赋值低的人只能找个地方躲起来天赋值高的则需要外出战斗，天赋值的提升是根据你对你自己天赋的使用的灵活度 提升五点天赋值就能解锁新的天赋 也有天生能力比较强的 刚觉醒就有三四个天赋 天赋也有排序和分类 编号13的天赋属于前五十名知识类天赋 比较厉害的天赋，编号13在这次红月大战中和队友配合顺利（队友的技能是雷电）收获了新的天赋——“跳跃” 强化类天赋 前一百的天赋 该天赋有很强的跳跃能力战斗中可以灵活改变位置\n\n\n",
+      "epilogue": "最后他们终于搞明白了异怪和时空穿越的事情，把世界恢复到最初的模样，可惜的是小13的恩人编号5再一次红月行动中为了保护13牺牲了，那次13提升了心的天赋“声波”，但也变得沉稳了",
+      "epilogueIllustration": "resources/characters/12250822/character_extendedBackground_epilogueIllustration.jpg"
+    },
+    "preferences": {
+      "likes": [
+        "西瓜",
+        "听歌",
+        "喜欢讲冷笑话"
+      ],
+      "dislikes": [
+        "讨厌别人骗自己",
+        "讨厌白桃味的一切",
+        "讨厌被嘲讽"
+      ],
+      "favoriteColor": "碧蓝色",
+      "habits": "不开心的时候喜欢听歌，开心的时候也喜欢听歌，平常就穿着校服因为他觉得这样可以让他怀念一下过去没有发现异怪的生活，喜欢啃手指",
+      "motto": "别让我看到你的技能哦"
+    },
+    "passiveSkill": {
+      "name": "复制",
+      "type": "天赋",
+      "effectDescription": "【未实装占位】在跟敌人打斗的过程中可以通过异瞳复制对方的技能并使用10秒",
+      "characteristic": "【未实装占位】冷却时间为五秒 只要用异瞳目睹敌人使用技能就能复制",
+      "icon": "resources/characters/12250822/character_passiveSkill_icon.jpg",
+      "castIllustration": "resources/characters/12250822/character_passiveSkill_castIllustration.png"
+    },
+    "activeSkills": [
+      {
+        "name": "声波干扰",
+        "type": "防御",
+        "effectDescription": "【未实装占位】他戴上耳机的时候会发出一种强烈的低频噪音，这个声音会干扰到敌人包括队友除了他自己 所以要谨慎使用但在关键时候可以扭转局面\n",
+        "characteristic": "【未实装占位】战斗中只能使用一次，使用时自生生命值会得到提高，对面的行动会受到一影响并少量掉血",
+        "icon": "resources/characters/12250822/character_activeSkills_0_icon.jpg",
+        "castIllustration": "resources/characters/12250822/character_activeSkills_0_castIllustration.png"
+      }
+    ]
+  },
+  "images": {
+    "avatar": "resources/characters/12250822/images_avatar_top_square.png",
+    "portrait": "resources/characters/12250822/images_avatar.png",
+    "selectionPortrait": "resources/characters/12250822/images_avatar.png"
+  }
+}

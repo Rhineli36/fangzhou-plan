@@ -1179,6 +1179,51 @@ function applyTeacherBattleOverrides(character: Character): Character {
     };
   }
 
+  if (character.creator?.studentId === "12250822") {
+    const talent = byType(character, "天赋");
+    const sound = byName(character, "声波干扰") || character.skills.find(skill => skill.type !== "天赋");
+    const mimicIcon = resolvePublicAsset("resources/characters/12250822/mimic_icon.png");
+    return {
+      ...character,
+      hp: 5,
+      skills: [
+        {
+          name: "复制",
+          type: "天赋",
+          description: "每个单数回合开始时，随机复制一张当前手牌并加入手牌。",
+          range: "单体",
+          cost: 0,
+          effect: "单数回合复制随机手牌。",
+          upgrade: "",
+          icon: talent?.icon || character.avatar,
+          castIllustration: talent?.castIllustration,
+        },
+        {
+          name: "声波干扰",
+          type: "攻击",
+          description: "费用 3。对敌方全体造成 1-3 点伤害，并赋予虚弱，持续 2 回合。",
+          range: "多体",
+          cost: 3,
+          effect: "群体随机伤害并附加虚弱。",
+          upgrade: "",
+          icon: sound?.icon || character.skills[1]?.icon || character.avatar,
+          castIllustration: sound?.castIllustration,
+        },
+        {
+          name: "模仿",
+          type: "异能",
+          description: "费用 1。选择一张手牌，生成一张目标卡牌；如果目标牌是被复制的，则生成牌消费能量为 0。",
+          range: "单体",
+          cost: 1,
+          effect: "复制指定手牌；复制牌会生成 0 费模仿牌。",
+          upgrade: "",
+          icon: mimicIcon || sound?.icon || character.avatar,
+          castIllustration: mimicIcon || sound?.castIllustration,
+        },
+      ],
+    };
+  }
+
   if (character.creator?.studentId === "12250823") {
     const talent = byName(character, "一键满血") || byType(character, "天赋");
     const reflux = byName(character, "药水反攻");
@@ -1272,6 +1317,7 @@ const rosterPriority = [
   "12250819",
   "12250820",
   "12250821",
+  "12250822",
   "12250823",
 ];
 export const playableCharacterIds = [
@@ -1297,6 +1343,7 @@ export const playableCharacterIds = [
   "12250819",
   "12250820",
   "12250821",
+  "12250822",
   "12250823",
 ];
 

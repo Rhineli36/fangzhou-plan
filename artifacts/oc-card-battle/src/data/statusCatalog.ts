@@ -3,6 +3,7 @@ import bleedIcon from "@assets/status_bleed.png";
 import shieldIcon from "@assets/status_shield.png";
 import chargeIcon from "@assets/status_charging.png";
 import attackUpIcon from "@assets/status_attack_up.png";
+import damageBoostIcon from "@assets/status_damage_boost.png";
 import immunityIcon from "@assets/status_immunity.png";
 import markIcon from "@assets/status_mark.png";
 import ambushIcon from "@assets/status_ambush.png";
@@ -74,7 +75,7 @@ export const statusCatalog: StatusDefinition[] = [
     id: "damageBoost",
     name: "伤害强化",
     kind: "增益",
-    icon: attackUpIcon,
+    icon: damageBoostIcon,
     short: "提高后续技能伤害。",
     description: "强化后续攻击或特定技能的伤害，可叠加时会按层数提高收益。",
   },

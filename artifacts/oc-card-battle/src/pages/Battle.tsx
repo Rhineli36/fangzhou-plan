@@ -13,6 +13,7 @@ import bleedIcon from "@assets/status_bleed.png";
 import shieldIcon from "@assets/status_shield.png";
 import chargeIcon from "@assets/status_charging.png";
 import attackUpIcon from "@assets/status_attack_up.png";
+import damageBoostIcon from "@assets/status_damage_boost.png";
 import immunityIcon from "@assets/status_immunity.png";
 import markIcon from "@assets/status_mark.png";
 import ambushIcon from "@assets/status_ambush.png";
@@ -85,6 +86,8 @@ interface BattleCard {
   ownerName: string;
   ownerAvatar: string;
   skill: Skill;
+  copied?: boolean;
+  fixedCost?: number;
 }
 
 interface EnemyTarget {
@@ -296,7 +299,7 @@ function makeStatus(id: StatusId, patch: Partial<Status> = {}): Status {
     damageBoost: {
       id,
       name: "伤害强化",
-      icon: attackUpIcon,
+      icon: damageBoostIcon,
       duration: 2,
       stacks: 1,
       description: "造成的伤害提高，每层 +1。",
@@ -560,6 +563,8 @@ function makeTalentStatus(character: Character, id: StatusId, patch: Partial<Sta
 }
 
 function getSkillCost(skill: Skill): number {
+  if (skill.name === "声波干扰") return 3;
+  if (skill.name === "模仿") return 1;
   if (skill.name === "雾愈之触") return 1;
   if (skill.name === "幻海囚笼") return 2;
   if (skill.name === "时序祷言") return 2;
@@ -584,6 +589,7 @@ function getSkillCost(skill: Skill): number {
 }
 
 function getCardCost(card: BattleCard, fighters: Fighter[]): number {
+  if (card.fixedCost !== undefined) return Math.max(0, card.fixedCost);
   const owner = fighters.find(f => f.character.id === card.ownerId);
   const dazeStacks = owner?.statuses
     .filter(s => s.id === "daze")
@@ -641,18 +647,33 @@ function drawCards(state: BattleState, amount: number): BattleState {
   return { ...state, deck, discard, hand };
 }
 
-function makeCard(character: Character, skill: Skill, suffix = "generated"): BattleCard {
+function makeCard(character: Character, skill: Skill, suffix = "generated", patch: Partial<BattleCard> = {}): BattleCard {
   return {
     uid: `${character.id}-${skill.name}-${suffix}-${Math.random().toString(36).slice(2)}`,
     ownerId: character.id,
     ownerName: character.name,
     ownerAvatar: character.avatar,
     skill,
+    ...patch,
   };
 }
 
 function addGeneratedCard(state: BattleState, character: Character, skill: Skill): BattleState {
   return { ...state, hand: [...state.hand, makeCard(character, skill)] };
+}
+
+function applyXiaoCopyTalent(state: BattleState, logs: string[]): BattleState {
+  const owner = state.fighters.find(fighter => fighter.character.creator?.studentId === "12250822" && fighter.hp > 0);
+  if (!owner || state.turn % 2 !== 1 || state.hand.length === 0 || state.hand.length >= state.maxHand) return state;
+  const source = state.hand[Math.floor(Math.random() * state.hand.length)];
+  const copy: BattleCard = {
+    ...source,
+    uid: `${source.ownerId}-${source.skill.name}-xiao-copy-${Math.random().toString(36).slice(2)}`,
+    copied: true,
+  };
+  const message = `复制触发：${owner.character.name}复制了手牌「${source.skill.name}」。`;
+  logs.push(message);
+  return { ...state, hand: [...state.hand, copy], log: [message, ...state.log].slice(0, LOG_LIMIT) };
 }
 
 function drawOwnerCards(state: BattleState, ownerId: string, amount: number, excludeSkillName?: string): BattleState {
@@ -756,6 +777,7 @@ function createInitialState(team: Character[]): BattleState {
     const fate = getActiveSkills(sailasi).find(skill => skill.name === "命运折射");
     if (fate) withOpeningCards = addGeneratedCard(withOpeningCards, sailasi, fate);
   }
+  withOpeningCards = applyXiaoCopyTalent(withOpeningCards, talentLogs);
   return withOpeningCards;
 }
 
@@ -777,6 +799,14 @@ function needsAllyTarget(card: BattleCard): boolean {
     "生命源泉",
     "逆剂回流",
   ].includes(card.skill.name);
+}
+
+function needsHandTarget(card: BattleCard): boolean {
+  return card.skill.name === "模仿";
+}
+
+function isAllEnemyCast(card: BattleCard): boolean {
+  return card.skill.name === "声波干扰";
 }
 
 function isSelfCast(card: BattleCard): boolean {
@@ -1443,6 +1473,7 @@ export default function Battle() {
   });
   const [targetingCard, setTargetingCard] = useState<BattleCard | null>(null);
   const [enemyTargetingCard, setEnemyTargetingCard] = useState<BattleCard | null>(null);
+  const [handTargetingCard, setHandTargetingCard] = useState<BattleCard | null>(null);
   const [hoveredCard, setHoveredCard] = useState<BattleCard | null>(null);
   const [playedCard, setPlayedCard] = useState<BattleCard | null>(null);
   const [discardMode, setDiscardMode] = useState(false);
@@ -1574,6 +1605,7 @@ export default function Battle() {
   const restart = () => {
     setTargetingCard(null);
     setEnemyTargetingCard(null);
+    setHandTargetingCard(null);
     setHoveredCard(null);
     setPlayedCard(null);
     setDiscardMode(false);
@@ -1593,6 +1625,7 @@ export default function Battle() {
     window.setTimeout(() => setPlayedCard(null), 620);
     setTargetingCard(null);
     setEnemyTargetingCard(null);
+    setHandTargetingCard(null);
     setHoveredCard(null);
 
     setState(prev => {
@@ -1657,7 +1690,51 @@ export default function Battle() {
     });
   };
 
+  const resolveMimic = (card: BattleCard, target: BattleCard) => {
+    if (state.phase !== "player" || card.uid === target.uid) return;
+    const cost = getCardCost(card, state.fighters);
+    if (state.energy < cost) return;
+    if (state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0) return;
+
+    setPlayedCard(card);
+    window.setTimeout(() => setPlayedCard(null), 620);
+    setTargetingCard(null);
+    setEnemyTargetingCard(null);
+    setHandTargetingCard(null);
+    setHoveredCard(null);
+
+    setState(prev => {
+      const liveTarget = prev.hand.find(handCard => handCard.uid === target.uid);
+      if (!liveTarget || liveTarget.uid === card.uid) return prev;
+      const generated: BattleCard = {
+        ...liveTarget,
+        uid: `${liveTarget.ownerId}-${liveTarget.skill.name}-mimic-${Math.random().toString(36).slice(2)}`,
+        copied: liveTarget.copied,
+        fixedCost: liveTarget.copied ? 0 : liveTarget.fixedCost,
+      };
+      const logs = [`${card.ownerName} 使用「模仿」，生成了「${liveTarget.skill.name}」${liveTarget.copied ? "，费用变为 0" : ""}。`];
+      return {
+        ...prev,
+        energy: prev.energy - getCardCost(card, prev.fighters),
+        hand: [...prev.hand.filter(handCard => handCard.uid !== card.uid), generated],
+        discard: [...prev.discard, card],
+        playedThisTurn: [...prev.playedThisTurn, card.ownerId],
+        playedSkillNames: [...prev.playedSkillNames, `${card.ownerId}:${card.skill.name}`],
+        recentHitIds: [],
+        log: [...logs, ...prev.log].slice(0, LOG_LIMIT),
+      };
+    });
+  };
+
   const onCardClick = (card: BattleCard) => {
+    if (handTargetingCard) {
+      if (handTargetingCard.uid === card.uid) {
+        setHandTargetingCard(null);
+        return;
+      }
+      resolveMimic(handTargetingCard, card);
+      return;
+    }
     if (discardMode) {
       if (state.phase !== "player") return;
       setState(prev => ({
@@ -1674,6 +1751,13 @@ export default function Battle() {
     if (needsAllyTarget(card)) {
       setTargetingCard(card);
       setEnemyTargetingCard(null);
+      setHandTargetingCard(null);
+      return;
+    }
+    if (needsHandTarget(card)) {
+      setHandTargetingCard(card);
+      setTargetingCard(null);
+      setEnemyTargetingCard(null);
       return;
     }
     if (isSelfCast(card)) {
@@ -1681,8 +1765,13 @@ export default function Battle() {
       resolveCardPlay(card, selfIndex);
       return;
     }
+    if (isAllEnemyCast(card)) {
+      resolveCardPlay(card);
+      return;
+    }
     setEnemyTargetingCard(card);
     setTargetingCard(null);
+    setHandTargetingCard(null);
   };
 
   const onFighterClick = (index: number) => {
@@ -1699,6 +1788,7 @@ export default function Battle() {
     if (state.phase !== "player") return;
     setTargetingCard(null);
     setEnemyTargetingCard(null);
+    setHandTargetingCard(null);
     setDiscardMode(false);
     setState(prev => runEnemyTurn(prev));
   };
@@ -1882,14 +1972,16 @@ export default function Battle() {
             <div className="grid min-w-max grid-flow-col auto-cols-[112px] gap-2">
               {state.hand.map(card => {
                 const cost = getCardCost(card, state.fighters);
-                const disabled = state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
+                const disabled = handTargetingCard
+                  ? state.phase !== "player"
+                  : state.phase !== "player" || (!discardMode && state.energy < cost) || state.fighters.find(f => f.character.id === card.ownerId)?.hp === 0;
                 return (
                   <BattleCardButton
                     key={card.uid}
                     card={card}
                     cost={cost}
                     disabled={disabled}
-                    selected={targetingCard?.uid === card.uid || enemyTargetingCard?.uid === card.uid || discardMode}
+                    selected={targetingCard?.uid === card.uid || enemyTargetingCard?.uid === card.uid || handTargetingCard?.uid === card.uid || discardMode}
                     onHover={setHoveredCard}
                     onClick={() => onCardClick(card)}
                   />
@@ -2015,6 +2107,14 @@ function applyCardPlayedTalents(state: BattleState, card: BattleCard, logs: stri
 }
 
 function resolveSkill(state: BattleState, card: BattleCard, logs: string[], copied: boolean, targetIndex?: number, enemyTargetId?: string): BattleState {
+  if (card.skill.name === "声波干扰") {
+    const damage = 1 + Math.floor(Math.random() * 3);
+    let next = applyDirectAllEnemyDamage(state, card, damage, logs);
+    next = addEnemyStatusToAll(next, makeStatus("weak", { duration: 2, stacks: 1 }));
+    logs.push(`声波干扰对敌方全体造成 ${damage} 点伤害，并附加 1 层虚弱。`);
+    return next;
+  }
+
   if (card.skill.name === "奥术飞弹") {
     const owner = state.fighters.find(fighter => fighter.character.id === card.ownerId);
     const playedByAiselin = state.playedSkillNames.filter(name => name.startsWith(`${card.ownerId}:`)).length;
@@ -3652,7 +3752,8 @@ function startPlayerTurn(state: BattleState): BattleState {
   }
 
   const draw = next.drawPerTurn + (next.turn <= 3 ? 1 : 0) + extraDraw;
-  return drawCards(next, draw);
+  next = drawCards(next, draw);
+  return applyXiaoCopyTalent(next, logs);
 }
 
 function IntroOverlay({ slide, onNext }: { slide?: IntroSlide; onNext: () => void }) {
@@ -3976,6 +4077,11 @@ function BattleCardButton({
       <div className="relative overflow-hidden">
         <img src={icon} alt={card.skill.name} className="h-full w-full object-cover transition group-hover:scale-105" />
         <div className="absolute left-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-300 text-xs font-black text-black">{cost}</div>
+        {card.copied && (
+          <div className="absolute right-1.5 top-1.5 border border-cyan-200 bg-cyan-300 px-1.5 py-0.5 text-[10px] font-black text-black">
+            复制
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-[34px_1fr] items-center gap-1.5 border-t border-primary/30 bg-[#10091b] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
         <div className="flex h-8 w-8 items-center justify-center overflow-hidden border border-primary/35 bg-white/90">
