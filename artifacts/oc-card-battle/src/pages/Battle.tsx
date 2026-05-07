@@ -157,11 +157,17 @@ interface IntroSlide {
   line: string;
 }
 
-const victoryLines = [
-  "啊……原来……我才是多余的那一个吗……",
-  "花……还没开完呢……",
-  "没关系……我们……还会再见的……",
-];
+const victoryLinesByBoss: Record<string, string> = {
+  "boss-01": "歌声停在花冠深处，雾林第一次露出归路。",
+  "boss-02": "两道刃影被强制分离，庭园只剩下同步失效后的寂静。",
+  "boss-03": "月光从缚链间坠落，黑狼的影子终于散入林地。",
+  "boss-04": "赤月沉入城垣，猎场终于重新打开。",
+  "boss-05": "祷文沉入湖底，钟楼在远处回应了黎明。",
+};
+
+function getVictoryLineForBoss(bossId = currentBoss.id): string {
+  return victoryLinesByBoss[bossId] ?? "异常核心已封存，方舟记录系统完成本次回收。";
+}
 
 const defeatLines = [
   "看，你也变得安静了。",
@@ -1467,7 +1473,7 @@ export default function Battle() {
   const [state, setState] = useState<BattleState>(() => {
     const initial = createInitialState(team);
     if (resultPreview === "victory") {
-      return { ...initial, phase: "victory", finaleLine: "赤月沉入城垣，猎场终于重新打开。" };
+      return { ...initial, phase: "victory", finaleLine: getVictoryLineForBoss() };
     }
     return initial;
   });
@@ -1681,7 +1687,7 @@ export default function Battle() {
         return {
           ...next,
           phase: "victory",
-          finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)],
+          finaleLine: getVictoryLineForBoss(),
           log: [...logs, "兽骨花冠被击败。", ...next.log].slice(0, LOG_LIMIT),
         };
       }
@@ -2915,7 +2921,7 @@ function runEnemyTurn(state: BattleState): BattleState {
   }
 
   if (next.boss.hp <= 0) {
-    return { ...next, phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+    return { ...next, phase: "victory", finaleLine: getVictoryLineForBoss(), log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
   if (next.boss.statuses.some(status => status.id === "coma")) {
@@ -3122,7 +3128,7 @@ function runSummonerEnemyTurn(state: BattleState): BattleState {
   const wolf = next.enemyUnits.find(unit => unit.id === "boss3-wolf");
 
   if (!witch || witch.hp <= 0) {
-    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)], log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: getVictoryLineForBoss("boss-03"), log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
   if (!wolf || wolf.hp <= 0) {
@@ -3248,7 +3254,7 @@ function runFinaleEnemyTurn(state: BattleState): BattleState {
 
   if (godAlive) {
     const currentGod = next.enemyUnits.find(unit => unit.id === "boss5-god");
-    if (!currentGod || currentGod.hp <= 0) return { ...syncAggregateBoss(next), phase: "victory", finaleLine: "钟声停下，方舟终于听见了黎明。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+    if (!currentGod || currentGod.hp <= 0) return { ...syncAggregateBoss(next), phase: "victory", finaleLine: getVictoryLineForBoss("boss-05"), log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
 
     if (next.turn % 2 === 1 && !currentGod.statuses.some(status => status.id === "immunity")) {
       next = {
@@ -3458,7 +3464,7 @@ function runHunterWolfEnemyTurn(state: BattleState): BattleState {
   const wolfBerserk = wolfAlive && (!hunterAlive || turnBerserk);
 
   if (!hunterAlive && !wolfAlive) {
-    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: "赤月沉入城垣，猎场终于重新打开。", log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
+    return { ...syncAggregateBoss(next), phase: "victory", finaleLine: getVictoryLineForBoss("boss-04"), log: [...logs, ...next.log].slice(0, LOG_LIMIT) };
   }
 
   if (turnBerserk) {
@@ -3747,7 +3753,7 @@ function startPlayerTurn(state: BattleState): BattleState {
     return {
       ...next,
       phase: "victory",
-      finaleLine: victoryLines[Math.floor(Math.random() * victoryLines.length)],
+      finaleLine: getVictoryLineForBoss(),
     };
   }
 
